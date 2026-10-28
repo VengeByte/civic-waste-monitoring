@@ -1,0 +1,5 @@
+# Dependencies used only by the offline GIS acquisition pipeline.
+# The FastAPI runtime does not need these; they are kept separate from requirements.txt.
+requests>=2.32,<3
+shapely>=2.0,<3
+pyproj>=3.6,<4

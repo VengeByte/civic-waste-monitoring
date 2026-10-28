@@ -100,21 +100,23 @@ class TestAuthorityRouter(unittest.TestCase):
         asyncio.run(_run())
 
     def test_unmapped_fallback_outside_polygons(self):
-        """Verify coordinate outside defined polygons triggers safe central fallback."""
-        # Location far outside Chandigarh (e.g. New Delhi)
-        lat, lon = 28.6139, 77.2090
+        """Verify a coordinate outside every covered municipality uses central fallback."""
+        # Null Island is outside all 30 covered municipal polygons.
+        lat, lon = 0.0, 0.0
 
         async def _run():
-            with patch("backend.authority_router.lookup_address", return_value="Connaught Place, New Delhi"):
+            with patch("backend.authority_router.lookup_address", return_value="Gulf of Guinea"):
                 result = await resolve_authority(lat, lon)
                 self.assertFalse(result["ward_matched"])
+                self.assertFalse(result["municipal_matched"])
+                self.assertEqual(result["match_type"], "central_fallback")
                 self.assertEqual(result["municipality_name"], "Municipal Grievance Cell (Central)")
                 self.assertEqual(result["ward_number"], "Unmapped")
                 self.assertEqual(result["ward_name"], "Central Grievance Zone")
                 self.assertEqual(result["sanitary_inspector_email"], "grievance.central@chd.nic.in")
-                self.assertEqual(result["moh_email"], "moh-mcc@chd.nic.in")
-                self.assertEqual(result["whatsapp_helpline"], "919220592205")
-                self.assertEqual(result["resolved_address"], "Connaught Place, New Delhi")
+                self.assertEqual(result["moh_email"], "")
+                self.assertEqual(result["whatsapp_helpline"], "")
+                self.assertEqual(result["resolved_address"], "Gulf of Guinea")
 
         asyncio.run(_run())
 

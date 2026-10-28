@@ -13,16 +13,17 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 import logging
 import os
-import re
-import urllib.parse
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 from backend.authority_router import resolve_authority
@@ -30,10 +31,25 @@ from backend.circuit_breaker import CIRCUIT_BREAKER
 from backend.email_dispatch import (
     EmailDeliveryError,
     SMTPConfig,
+    build_email_message,
     send_complaint_email,
 )
 from backend.env_loader import env_bool
 from backend.evidence import EVIDENCE_STORE
+from backend.gmail_draft import (
+    GMAIL_SESSIONS,
+    GMAIL_STATES,
+    SESSION_COOKIE_NAME,
+    SESSION_TTL_SECONDS,
+    GmailOAuthError,
+    GoogleOAuthConfig,
+    build_draft_url,
+    build_raw_message,
+    create_gmail_draft,
+    exchange_code,
+    fetch_userinfo,
+    refresh_access_token,
+)
 from backend.privacy import blur_pii_in_image
 from backend.provider_check import check_all
 from backend.vlm_config import DEFAULT_PROVIDERS, configured_api_key_count
@@ -208,26 +224,70 @@ def compile_complaint_letter(
     severity_str = str(vlm_result.get("severity", "medium")).capitalize()
     description = vlm_result.get("official_complaint_description", "").strip()
 
-    subject = f"URGENT: Municipal Waste Clearance Request - Ward {ward_number} ({ward_name})"
+    match_type = str(authority.get("match_type", "ward"))
+    is_ward = match_type == "ward"
+    is_central = match_type == "central_fallback"
+    website = str(authority.get("website", "")).strip()
+    helpline = str(authority.get("helpline", "")).strip()
+    boundary_quality = str(authority.get("boundary_quality", "")).strip()
+
+    if is_ward:
+        subject = (
+            f"URGENT: Municipal Waste Clearance Request - "
+            f"Ward {ward_number} ({ward_name})"
+        )
+        recipient_block = (
+            f"The Sanitary Inspector & Medical Officer of Health (MOH)\n"
+            f"{municipality} (Ward {ward_number}: {ward_name})"
+        )
+        salutation = "Respected Municipal Officers,"
+        authority_line = f"• Authority Basis    : Ward {ward_number}"
+    elif is_central:
+        subject = (
+            "URGENT: Municipal Waste Clearance Request - Central Grievance Cell"
+        )
+        recipient_block = "The Central Municipal Grievance Cell"
+        salutation = "Respected Grievance Officer,"
+        authority_line = "• Authority Basis    : Central municipal fallback"
+    else:
+        subject = f"URGENT: Municipal Waste Clearance Request - {municipality}"
+        recipient_block = f"The Municipal Commissioner\n{municipality}"
+        salutation = "Respected Municipal Commissioner,"
+        authority_line = (
+            f"• Authority Basis    : {boundary_quality or 'municipal'} boundary"
+        )
+
     evidence_line = (
         f"• Photo Evidence      : {evidence_url}\n"
         if evidence_url
         else ""
     )
+    portal_line = f"• Municipal Portal    : {website}\n" if website else ""
+    helpline_line = f"• Helpline            : {helpline}\n" if helpline else ""
+    routing_note = (
+        "This report could not be mapped to a specific municipal corporation. "
+        "Please forward it to the urban local body with jurisdiction over the "
+        "coordinates above.\n\n"
+        if is_central
+        else ""
+    )
 
     body = (
         f"To,\n"
-        f"The Sanitary Inspector & Medical Officer of Health (MOH)\n"
-        f"{municipality} (Ward {ward_number}: {ward_name})\n\n"
+        f"{recipient_block}\n\n"
         f"Subject: Formal Grievance & Municipal Sanitation Clearance Demand\n\n"
-        f"Respected Municipal Officers,\n\n"
+        f"{salutation}\n\n"
         f"{description}\n\n"
+        f"{routing_note}"
         f"Incident Inspection Details:\n"
         f"--------------------------------------------------\n"
         f"• Location / Address  : {formatted_address}\n"
         f"• GPS Coordinates     : {lat:.6f}, {lon:.6f}\n"
         f"• Google Maps Link    : {gmaps_link}\n"
         f"{evidence_line}"
+        f"{authority_line}\n"
+        f"{portal_line}"
+        f"{helpline_line}"
         f"• Identified Waste    : {waste_str}\n"
         f"• Severity Level      : {severity_str}\n"
         f"• Timestamp of Report : {time_str}\n"
@@ -239,63 +299,6 @@ def compile_complaint_letter(
     )
 
     return subject, body, to_email, cc_list
-
-
-def generate_dispatch_urls(
-    to_email: str,
-    cc_list: list[str],
-    subject: str,
-    body: str,
-    whatsapp_helpline: str,
-    formatted_address: str,
-    ward_number: str,
-    severity: str,
-    lat: float,
-    lon: float,
-    evidence_url: Optional[str] = None,
-) -> tuple[str, str, str]:
-    """
-    Generate pre-filled, URL-encoded dispatch URLs for mailto, Gmail Web, and WhatsApp.
-
-    Returns:
-        tuple[mailto_url, gmail_web_url, whatsapp_url]
-    """
-    cc_str = ",".join(cc_list)
-
-    # 1. Pre-filled standard mailto URL
-    mailto_params = []
-    if cc_str:
-        mailto_params.append(f"cc={urllib.parse.quote(cc_str)}")
-    mailto_params.append(f"subject={urllib.parse.quote(subject)}")
-    mailto_params.append(f"body={urllib.parse.quote(body)}")
-    mailto_url = f"mailto:{to_email}?{'&'.join(mailto_params)}"
-
-    # 2. Gmail Web Compose direct URL
-    gmail_params = [
-        "view=cm",
-        "fs=1",
-        f"to={urllib.parse.quote(to_email)}",
-    ]
-    if cc_str:
-        gmail_params.append(f"cc={urllib.parse.quote(cc_str)}")
-    gmail_params.append(f"su={urllib.parse.quote(subject)}")
-    gmail_params.append(f"body={urllib.parse.quote(body)}")
-    gmail_web_url = f"https://mail.google.com/mail/?{'&'.join(gmail_params)}"
-
-    # 3. WhatsApp Direct Helpline URL
-    clean_phone = re.sub(r"\D", "", str(whatsapp_helpline)) or "919220592205"
-    wa_evidence_line = f"Photo evidence: {evidence_url}\n" if evidence_url else ""
-    wa_message = (
-        f"CIVIC GRIEVANCE NOTICE\n"
-        f"Location: {formatted_address} (Ward {ward_number})\n"
-        f"Severity: {severity}\n"
-        f"Map: https://www.google.com/maps?q={lat},{lon}\n"
-        f"{wa_evidence_line}"
-        f"Urgent municipal sanitation clearance required."
-    )
-    whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(wa_message)}"
-
-    return mailto_url, gmail_web_url, whatsapp_url
 
 
 @app.post("/api/report", summary="Submit Civic Garbage Report")
@@ -314,7 +317,7 @@ async def report_civic_garbage(
     - Step D: Resolve municipal authority (ward boundary & Nominatim address).
     - Step E: Retain the sanitized photo behind a short-lived evidence link.
     - Step F: Compile formal complaint letter including the evidence URL.
-    - Step G: Generate pre-filled mailto, Gmail Web, and WhatsApp dispatch URLs.
+    - Step G: Build the draft used by the Gmail API draft endpoint.
     """
     # Step A: Read raw bytes & validate non-empty payload
     raw_bytes = await file.read()
@@ -384,34 +387,12 @@ async def report_civic_garbage(
         evidence_url=evidence_url,
     )
 
-    # Step G: Generate Dispatch URLs (mailto, Gmail Web, WhatsApp)
-    formatted_addr = (
-        authority.get("formatted_address")
-        or authority.get("resolved_address")
-        or f"Lat: {lat:.6f}, Lon: {lon:.6f}"
-    )
-    mailto_url, gmail_web_url, whatsapp_url = generate_dispatch_urls(
-        to_email=to_email,
-        cc_list=cc_list,
-        subject=subject,
-        body=body,
-        whatsapp_helpline=authority.get("whatsapp_helpline", "919220592205"),
-        formatted_address=formatted_addr,
-        ward_number=authority.get("ward_number", "Unmapped"),
-        severity=str(vlm_data.get("severity", "medium")).capitalize(),
-        lat=lat,
-        lon=lon,
-        evidence_url=evidence_url,
-    )
-
+    # Step G: Compile the draft used by the Gmail draft endpoint.
     draft = {
         "to": to_email,
         "cc": cc_list,
         "subject": subject,
         "body": body,
-        "mailto_url": mailto_url,
-        "gmail_web_url": gmail_web_url,
-        "whatsapp_url": whatsapp_url,
         "evidence_url": evidence_url,
         "evidence_expires_at": evidence_record.expires_at_iso,
     }
@@ -497,7 +478,7 @@ async def email_report(
             detail=(
                 "Server-side email delivery is not configured. Set SMTP_HOST (and optional "
                 "SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM) to enable photo-attached "
-                "sending, or use the mailto/Gmail/WhatsApp links instead."
+                "sending. The website uses the Gmail draft endpoint instead."
             ),
         )
 
@@ -560,6 +541,249 @@ async def email_report(
         "sent_at": sent_at,
         "send_count": send_count,
         "message": f"Complaint emailed to {to_email} with the sanitized photo attached.",
+    }
+
+
+def _google_redirect_uri(request: Request, config: GoogleOAuthConfig) -> str:
+    """Resolve the OAuth callback URL, preferring explicit configuration."""
+    if config.redirect_uri:
+        return config.redirect_uri
+    base = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
+    if base:
+        return f"{base}/auth/google/callback"
+    return str(request.url_for("google_callback"))
+
+
+def _oauth_popup_html(payload: dict[str, Any]) -> HTMLResponse:
+    """Return a tiny page that notifies the opener and closes the OAuth popup."""
+    payload_json = json.dumps(payload)
+    html = f"""<!doctype html>
+<html><head><meta charset="utf-8"><title>Gmail connection</title></head>
+<body style="font-family: system-ui, sans-serif; padding: 2rem;">
+<p>Gmail connection complete. You can close this window.</p>
+<script>
+  const payload = {payload_json};
+  if (window.opener) {{
+    window.opener.postMessage(payload, window.location.origin);
+  }}
+  window.close();
+</script>
+</body></html>"""
+    return HTMLResponse(content=html)
+
+
+@app.get("/auth/google/status", summary="Gmail Connection Status")
+async def google_status(request: Request) -> dict[str, Any]:
+    """Report whether Gmail OAuth is configured and whether this browser is connected."""
+    config = GoogleOAuthConfig.from_env()
+    session = GMAIL_SESSIONS.get(request.cookies.get(SESSION_COOKIE_NAME))
+    return {
+        "configured": config is not None,
+        "connected": session is not None,
+        "email": session.email if session is not None else None,
+    }
+
+
+@app.get("/auth/google/start", summary="Connect a Gmail Account")
+async def google_start(request: Request, popup: bool = False) -> RedirectResponse:
+    """Redirect to Google's account chooser with the Gmail compose scope."""
+    config = GoogleOAuthConfig.from_env()
+    if config is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Gmail draft integration is not configured. Set GOOGLE_CLIENT_ID, "
+                "GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI."
+            ),
+        )
+
+    redirect_uri = _google_redirect_uri(request, config)
+    state = GMAIL_STATES.create(popup=popup, redirect_uri=redirect_uri)
+    return RedirectResponse(
+        config.authorization_url(state, redirect_uri),
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@app.get("/auth/google/callback", name="google_callback", summary="Gmail OAuth Callback")
+async def google_callback(
+    request: Request,
+    code: Optional[str] = None,
+    state: Optional[str] = None,
+    error: Optional[str] = None,
+) -> Response:
+    """Exchange the authorization code and store the Gmail session."""
+    pending = GMAIL_STATES.consume(state)
+    if pending is None:
+        return HTMLResponse(
+            "<h1>Gmail connection failed</h1><p>Invalid or expired OAuth state.</p>",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if error:
+        return _oauth_popup_html(
+            {"type": "gmail-error", "message": f"Google returned: {error}"}
+        )
+
+    config = GoogleOAuthConfig.from_env()
+    if config is None:
+        return _oauth_popup_html(
+            {"type": "gmail-error", "message": "Gmail integration is not configured."}
+        )
+
+    if not code:
+        return _oauth_popup_html(
+            {"type": "gmail-error", "message": "Google did not return an authorization code."}
+        )
+
+    try:
+        token_data = await exchange_code(config, code, pending.redirect_uri)
+        userinfo = await fetch_userinfo(token_data["access_token"])
+        session = GMAIL_SESSIONS.create(token_data, str(userinfo["email"]))
+    except GmailOAuthError as exc:
+        logger.warning("Gmail OAuth failed: %s", exc)
+        return _oauth_popup_html({"type": "gmail-error", "message": str(exc)})
+
+    if pending.popup:
+        response: Response = _oauth_popup_html(
+            {"type": "gmail-connected", "email": session.email}
+        )
+    else:
+        response = RedirectResponse(url="/?gmail=connected", status_code=status.HTTP_303_SEE_OTHER)
+
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=session.session_id,
+        max_age=SESSION_TTL_SECONDS,
+        httponly=True,
+        samesite="lax",
+        secure=request.url.scheme == "https",
+        path="/",
+    )
+    return response
+
+
+@app.post(
+    "/api/reports/{report_id}/gmail-draft",
+    summary="Create Gmail Draft with Photo Attached",
+)
+async def create_report_gmail_draft(
+    report_id: str,
+    request: Request,
+    payload: Optional[EmailDispatchRequest] = None,
+) -> dict[str, Any]:
+    """
+    Create a draft in the connected Gmail account with the sanitized JPEG attached.
+
+    The draft is not sent. Gmail opens in the Drafts view so the user can select the
+    sender account, review the message, and press Send.
+    """
+    config = GoogleOAuthConfig.from_env()
+    if config is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Gmail draft integration is not configured. Set GOOGLE_CLIENT_ID, "
+                "GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI."
+            ),
+        )
+
+    session_id = request.cookies.get(SESSION_COOKIE_NAME)
+    session = GMAIL_SESSIONS.get(session_id)
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Connect a Gmail account before creating a draft.",
+        )
+
+    if session.expires_at <= time.time() + 60:
+        if not session.refresh_token:
+            GMAIL_SESSIONS.delete(session.session_id)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Gmail authorization expired. Please reconnect your account.",
+            )
+        try:
+            refreshed = await refresh_access_token(config, session.refresh_token)
+        except GmailOAuthError as exc:
+            logger.warning("Gmail token refresh failed: %s", exc)
+            GMAIL_SESSIONS.delete(session.session_id)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Gmail authorization expired. Please reconnect your account.",
+            )
+        updated = GMAIL_SESSIONS.update_tokens(session.session_id, refreshed)
+        if updated is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Gmail session expired. Please reconnect your account.",
+            )
+        session = updated
+
+    record = EVIDENCE_STORE.get(report_id)
+    if record is None or not record.draft:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found or the evidence link has expired.",
+        )
+
+    draft = record.draft
+    to_email = str(draft.get("to", "")).strip()
+    cc_list = [str(addr).strip() for addr in draft.get("cc", []) if str(addr).strip()]
+    subject = (payload.subject if payload and payload.subject else draft.get("subject", "")).strip()
+    body = (payload.body if payload and payload.body else draft.get("body", "")).strip()
+    if not to_email or not subject or not body:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Complaint draft is missing a recipient, subject, or body.",
+        )
+
+    filename = f"civic-evidence-{report_id[:8]}.jpg"
+    try:
+        message = build_email_message(
+            sender=session.email,
+            to=to_email,
+            cc=cc_list,
+            subject=subject,
+            body=body,
+            image_bytes=record.image_bytes,
+            filename=filename,
+        )
+        raw_message = build_raw_message(message)
+        gmail_draft = await create_gmail_draft(session.access_token, raw_message)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Could not build the Gmail draft: {exc}",
+        )
+    except GmailOAuthError as exc:
+        logger.warning("Gmail draft creation failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Gmail could not create the draft. Please reconnect and try again.",
+        )
+
+    draft_url = build_draft_url(session.email)
+    logger.info(
+        "Created Gmail draft %s for report %s... in %s.",
+        gmail_draft.get("id"),
+        report_id[:8],
+        session.email,
+    )
+    return {
+        "status": "draft_created",
+        "report_id": report_id,
+        "draft_id": gmail_draft.get("id"),
+        "draft_url": draft_url,
+        "account_email": session.email,
+        "to": to_email,
+        "cc": cc_list,
+        "subject": subject,
+        "attachment_bytes": len(record.image_bytes),
+        "message": (
+            "Gmail draft created with the sanitized photo attached. "
+            "Choose the sender account in Gmail and press Send."
+        ),
     }
 
 

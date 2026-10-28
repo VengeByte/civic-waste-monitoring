@@ -2,9 +2,9 @@
 End-to-end integration test runner for backend/main.py using fastapi.testclient.TestClient.
 
 Tests:
-1. Test 1: Full Positive Pipeline & Handoff Compilation (Ward 12 resolution, dispatch URLs)
+1. Test 1: Full Positive Pipeline & Handoff Compilation (Ward 12 resolution)
 2. Test 2: Negative Detection Short-Circuit (garbage_detected=False, draft omitted)
-3. Test 3: URL Encoding & Escaping Validation (&, ?, =, %, spaces, newlines properly escaped)
+3. Test 3: Gmail Draft Attachment (MIME with JPEG and edited body)
 4. Test 4: Input Validation (Empty File -> HTTP 400 or 422)
 
 Executive Summary Table:
@@ -21,14 +21,16 @@ Execution:
 from __future__ import annotations
 
 import base64
+import email
 import json
 import sys
 import time
-import urllib.parse
 from dataclasses import dataclass
+from email import policy
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Optional
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -72,9 +74,8 @@ def test_full_positive_pipeline_and_handoff_compilation() -> APIMetricCard:
     - Mocks the VLM to return positive garbage detection.
     - Asserts status code 200.
     - Asserts garbage_detected == True.
-    - Asserts mailto_url contains mailto:sanitation.ward12@chd.nic.in.
-    - Asserts gmail_web_url starts with https://mail.google.com/mail/?view=cm.
-    - Asserts whatsapp_url contains sanitized phone number and encoded body.
+    - Asserts the draft targets the Ward 12 email.
+    - Asserts no legacy mailto/Gmail/WhatsApp URLs are present.
     """
     lat, lon = 30.7500, 76.7700
     mock_vlm_dict = {
@@ -112,21 +113,14 @@ def test_full_positive_pipeline_and_handoff_compilation() -> APIMetricCard:
     authority = body.get("authority", {})
     assert authority.get("ward_number") == "12", f"Expected Ward 12, got {authority.get('ward_number')}"
 
-    # Verify draft & dispatch URLs
+    # Verify draft and attached-email routing
     draft = body.get("draft", {})
     assert draft, "Draft object must be present in positive detection response"
-    assert "mailto:sanitation.ward12@chd.nic.in" in draft["mailto_url"], (
-        f"mailto_url missing target email: {draft.get('mailto_url')}"
-    )
-    assert draft["gmail_web_url"].startswith("https://mail.google.com/mail/?view=cm"), (
-        f"gmail_web_url does not start with expected prefix: {draft.get('gmail_web_url')}"
-    )
-
-    clean_helpline = "919220592205"
-    assert clean_helpline in draft["whatsapp_url"], (
-        f"whatsapp_url must contain sanitized helpline {clean_helpline}: {draft.get('whatsapp_url')}"
-    )
-    assert "text=" in draft["whatsapp_url"], "whatsapp_url must contain encoded text parameter"
+    assert draft["to"] == "sanitation.ward12@chd.nic.in"
+    assert draft["subject"].startswith("URGENT:")
+    assert "mailto_url" not in draft
+    assert "gmail_web_url" not in draft
+    assert "whatsapp_url" not in draft
 
     return APIMetricCard(
         test_name="Test 1: Full Positive Pipeline",
@@ -138,9 +132,7 @@ def test_full_positive_pipeline_and_handoff_compilation() -> APIMetricCard:
             "garbage_detected": body["garbage_detected"],
             "ward_resolved": f"Ward {authority.get('ward_number')} ({authority.get('ward_name')})",
             "to_recipient": draft["to"],
-            "mailto_url_prefix": draft["mailto_url"][:45] + "...",
-            "gmail_web_url_prefix": draft["gmail_web_url"][:45] + "...",
-            "whatsapp_url_prefix": draft["whatsapp_url"][:45] + "...",
+            "delivery": "Gmail draft with JPEG attachment",
         },
     )
 
@@ -192,15 +184,15 @@ def test_negative_detection_short_circuit() -> APIMetricCard:
     )
 
 
-def test_url_encoding_and_escaping_validation() -> APIMetricCard:
+def test_gmail_draft_contains_jpeg_attachment() -> APIMetricCard:
     """
-    Test 3: URL Encoding & Escaping Validation
-    - Verifies that spaces, newlines, and special characters (&, ?, =, %) in generated
-      mailto_url, gmail_web_url, and whatsapp_url are properly percent-encoded and do
-      not break URL structure.
+    Test 3: Gmail Draft Attachment
+    - Posts a positive report.
+    - Mocks the Gmail session and draft API.
+    - Calls /api/reports/{id}/gmail-draft.
+    - Decodes the raw MIME and asserts the JPEG attachment and edited body.
     """
     lat, lon = 30.7500, 76.7700
-    # Description containing problematic characters (&, ?, =, %, newlines, spaces)
     special_desc = (
         "Hazardous refuse: 50% broken glass & toxic chemical containers?\n"
         "Urgent action = mandatory.\n"
@@ -216,60 +208,70 @@ def test_url_encoding_and_escaping_validation() -> APIMetricCard:
 
     start_time = time.perf_counter()
     with patch("backend.main.analyze_with_vlm", return_value=VLMResult(mock_vlm_special, provider="Google Gemini")), \
-         patch("backend.authority_router.lookup_address", return_value="Sector 15 & 16 Plaza, Chandigarh"):
+         patch("backend.authority_router.lookup_address", return_value="Sector 15 & 16 Plaza, Chandigarh"), \
+         patch(
+             "backend.main.GoogleOAuthConfig.from_env",
+             return_value=SimpleNamespace(
+                 client_id="client-id",
+                 client_secret="client-secret",
+                 redirect_uri="http://testserver/auth/google/callback",
+                 authorization_url=lambda state, uri: "https://accounts.google.com/o/oauth2/v2/auth",
+             ),
+         ), \
+         patch(
+             "backend.main.GMAIL_SESSIONS.get",
+             return_value=SimpleNamespace(
+                 session_id="session-1",
+                 access_token="access-token",
+                 refresh_token="refresh-token",
+                 expires_at=time.time() + 3600,
+                 email="tester@gmail.com",
+             ),
+         ), \
+         patch(
+             "backend.main.create_gmail_draft",
+             new=AsyncMock(return_value={"id": "draft-123"}),
+         ) as mock_create:
 
         files = {"file": ("special_chars.jpg", SYNTHETIC_TEST_IMAGE_BYTES, "image/jpeg")}
         form_data = {"lat": str(lat), "lon": str(lon)}
-        response = client.post("/api/report", files=files, data=form_data)
+        report = client.post("/api/report", files=files, data=form_data)
+        report_id = report.json()["report_id"]
+        response = client.post(
+            f"/api/reports/{report_id}/gmail-draft",
+            json={"body": special_desc},
+        )
 
     latency_ms = (time.perf_counter() - start_time) * 1000.0
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["status"] == "draft_created"
+    assert payload["draft_id"] == "draft-123"
+    assert "authuser=tester%40gmail.com" in payload["draft_url"]
+    assert payload["attachment_bytes"] > 0
 
-    assert response.status_code == 200
-    draft = response.json()["draft"]
-
-    mailto_url = draft["mailto_url"]
-    gmail_web_url = draft["gmail_web_url"]
-    whatsapp_url = draft["whatsapp_url"]
-
-    # 1. Ensure NO raw unescaped spaces or newlines exist in the URL strings
-    for url_name, url_str in [("mailto", mailto_url), ("gmail", gmail_web_url), ("whatsapp", whatsapp_url)]:
-        assert " " not in url_str, f"Unescaped raw space found in {url_name} URL"
-        assert "\n" not in url_str, f"Unescaped newline found in {url_name} URL"
-        assert "\r" not in url_str, f"Unescaped carriage return found in {url_name} URL"
-
-    # 2. Parse Gmail URL structure via urllib.parse to verify query integrity
-    parsed_gmail = urllib.parse.urlparse(gmail_web_url)
-    assert parsed_gmail.scheme == "https"
-    assert parsed_gmail.netloc == "mail.google.com"
-    gmail_qs = urllib.parse.parse_qs(parsed_gmail.query)
-
-    assert gmail_qs.get("view") == ["cm"]
-    assert gmail_qs.get("fs") == ["1"]
-    assert "to" in gmail_qs and len(gmail_qs["to"][0]) > 0
-    assert "su" in gmail_qs
-    # Assert body successfully roundtrips through URL encoding without losing special characters
-    recovered_body = gmail_qs["body"][0]
-    assert special_desc in recovered_body, "Special characters (&, ?, =, %, newlines) failed to roundtrip in Gmail body"
-
-    # 3. Parse WhatsApp URL structure
-    parsed_wa = urllib.parse.urlparse(whatsapp_url)
-    assert parsed_wa.scheme == "https"
-    assert parsed_wa.netloc == "wa.me"
-    wa_qs = urllib.parse.parse_qs(parsed_wa.query)
-    assert "text" in wa_qs
-    assert len(wa_qs["text"][0]) > 0
+    raw = mock_create.call_args.args[1]
+    padded = raw + "=" * (-len(raw) % 4)
+    message = email.message_from_bytes(
+        base64.urlsafe_b64decode(padded), policy=policy.default
+    )
+    attachments = list(message.iter_attachments())
+    assert len(attachments) == 1
+    assert attachments[0].get_content_type() == "image/jpeg"
+    body_part = message.get_body(preferencelist=("plain",))
+    assert body_part is not None
+    assert special_desc in body_part.get_content()
 
     return APIMetricCard(
-        test_name="Test 3: URL Encoding & Escaping",
-        endpoint="POST /api/report",
+        test_name="Test 3: Gmail Draft Attachment",
+        endpoint="POST /api/reports/{id}/gmail-draft",
         latency_ms=latency_ms,
         status="PASSED",
         details={
-            "raw_newlines_detected": False,
-            "raw_spaces_detected": False,
-            "special_chars_verified": ["&", "?", "=", "%", "\\n"],
-            "gmail_query_params": list(gmail_qs.keys()),
-            "whatsapp_param_verified": "text",
+            "draft_id": payload["draft_id"],
+            "account_email": payload["account_email"],
+            "attachment_type": attachments[0].get_content_type(),
+            "body_roundtrip": "special characters preserved",
         },
     )
 
@@ -395,7 +397,7 @@ def run_all_checks() -> int:
     tests = [
         ("Test 1", test_full_positive_pipeline_and_handoff_compilation),
         ("Test 2", test_negative_detection_short_circuit),
-        ("Test 3", test_url_encoding_and_escaping_validation),
+        ("Test 3", test_gmail_draft_contains_jpeg_attachment),
         ("Test 4", test_input_validation_empty_file),
     ]
 

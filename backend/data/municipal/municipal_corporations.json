@@ -1,0 +1,766 @@
+[
+  {
+    "id": "municipal-corporation-of-delhi",
+    "name": "Municipal Corporation of Delhi (MCD)",
+    "short_name": "MCD",
+    "state": "Delhi",
+    "emails": [
+      "mcd-ithelpdesk@mcd.nic.in"
+    ],
+    "helpline": "155305 (Centralized Call Center)",
+    "website": "https://mcdonline.nic.in",
+    "jurisdiction": "NCT of Delhi (excluding NDMC & Delhi Cantonment)",
+    "aliases": [
+      "Delhi",
+      "Delhi Mahanagar Palika",
+      "Delhi Municipal Corporation",
+      "Delhi Nagar Nigam",
+      "MCD",
+      "Municipal Corporation of Delhi"
+    ],
+    "centroid": [
+      77.112166,
+      28.646788
+    ],
+    "boundary_status": "needs_review"
+  },
+  {
+    "id": "new-delhi-municipal-council",
+    "name": "New Delhi Municipal Council (NDMC)",
+    "short_name": "NDMC",
+    "state": "Delhi",
+    "emails": [
+      "secretary@ndmc.gov.in"
+    ],
+    "helpline": "1533 / +91 99999 88888",
+    "website": "https://www.ndmc.gov.in",
+    "jurisdiction": "New Delhi Lutyens' zone area",
+    "aliases": [
+      "NDMC",
+      "New Delhi",
+      "New Delhi Mahanagar Palika",
+      "New Delhi Municipal Corporation",
+      "New Delhi Municipal Council",
+      "New Delhi Nagar Nigam"
+    ],
+    "centroid": [
+      77.204584,
+      28.604065
+    ],
+    "boundary_status": "needs_review"
+  },
+  {
+    "id": "brihanmumbai-municipal-corporation",
+    "name": "Brihanmumbai Municipal Corporation (BMC)",
+    "short_name": "BMC",
+    "state": "Maharashtra",
+    "emails": [
+      "ccp@mcgm.gov.in"
+    ],
+    "helpline": "1916 / Centralized Support Desk",
+    "website": "https://portal.mcgm.gov.in",
+    "jurisdiction": "Mumbai City and Suburban District",
+    "aliases": [
+      "BMC",
+      "Bombay",
+      "Bombay Municipal Corporation",
+      "Bombay Nagar Nigam",
+      "Brihanmumbai",
+      "Brihanmumbai Mahanagar Palika",
+      "Brihanmumbai Municipal Corporation",
+      "Brihanmumbai Nagar Nigam",
+      "Greater Mumbai",
+      "Greater Mumbai Municipal Corporation",
+      "Greater Mumbai Nagar Nigam",
+      "Mumbai",
+      "Mumbai Municipal Corporation",
+      "Mumbai Nagar Nigam"
+    ],
+    "centroid": [
+      72.870625,
+      19.118326
+    ],
+    "boundary_status": "verified_community"
+  },
+  {
+    "id": "pune-municipal-corporation",
+    "name": "Pune Municipal Corporation (PMC)",
+    "short_name": "PMC",
+    "state": "Maharashtra",
+    "emails": [
+      "info@punecorporation.org"
+    ],
+    "helpline": "020-25501000 / PMC Care",
+    "website": "https://www.pmc.gov.in",
+    "jurisdiction": "Pune City, Maharashtra",
+    "aliases": [
+      "PMC",
+      "Poona",
+      "Poona Municipal Corporation",
+      "Poona Nagar Nigam",
+      "Pune",
+      "Pune Mahanagar Palika",
+      "Pune Municipal Corporation",
+      "Pune Nagar Nigam"
+    ],
+    "centroid": [
+      73.861511,
+      18.521058
+    ],
+    "boundary_status": "verified_community"
+  },
+  {
+    "id": "nagpur-municipal-corporation",
+    "name": "Nagpur Municipal Corporation (NMC)",
+    "short_name": "NMC",
+    "state": "Maharashtra",
+    "emails": [
+      "nmccentral@nagsur.gov.in"
+    ],
+    "helpline": "0712-2567013",
+    "website": "https://www.nmcnagpur.gov.in",
+    "jurisdiction": "Nagpur City, Maharashtra",
+    "aliases": [
+      "NMC",
+      "Nagpur",
+      "Nagpur Mahanagar Palika",
+      "Nagpur Municipal Corporation",
+      "Nagpur Nagar Nigam"
+    ],
+    "centroid": [
+      79.081946,
+      21.146473
+    ],
+    "boundary_status": "needs_review"
+  },
+  {
+    "id": "thane-municipal-corporation",
+    "name": "Thane Municipal Corporation (TMC)",
+    "short_name": "TMC",
+    "state": "Maharashtra",
+    "emails": [
+      "commissioner@thanecorporation.com"
+    ],
+    "helpline": "022-25331901",
+    "website": "https://thanecity.gov.in",
+    "jurisdiction": "Thane City, Maharashtra",
+    "aliases": [
+      "TMC",
+      "Thana",
+      "Thana Municipal Corporation",
+      "Thana Nagar Nigam",
+      "Thane",
+      "Thane Mahanagar Palika",
+      "Thane Municipal Corporation",
+      "Thane Nagar Nigam"
+    ],
+    "centroid": [
+      72.988002,
+      19.215597
+    ],
+    "boundary_status": "needs_review"
+  },
+  {
+    "id": "pimpri-chinchwad-municipal-corporation",
+    "name": "Pimpri Chinchwad Municipal Corporation (PCMC)",
+    "short_name": "PCMC",
+    "state": "Maharashtra",
+    "emails": [
+      "egov@pcmcindia.gov.in"
+    ],
+    "helpline": "1800-233-1333 (SARTHI Helpline)",
+    "website": "https://www.pcmcindia.gov.in",
+    "jurisdiction": "Pimpri Chinchwad, Maharashtra",
+    "aliases": [
+      "PCMC",
+      "Pimpri Chinchwad",
+      "Pimpri Chinchwad Mahanagar Palika",
+      "Pimpri Chinchwad Municipal Corporation",
+      "Pimpri Chinchwad Nagar Nigam"
+    ],
+    "centroid": [
+      73.813387,
+      18.641432
+    ],
+    "boundary_status": "verified_community"
+  },
+  {
+    "id": "bruhat-bengaluru-mahanagara-palike",
+    "name": "Bruhat Bengaluru Mahanagara Palike (BBMP)",
+    "short_name": "BBMP",
+    "state": "Karnataka",
+    "emails": [
+      "commissioner@bbmp.gov.in"
+    ],
+    "helpline": "1533 (Sahaya Helpdesk)",
+    "website": "https://bbmp.gov.in",
+    "jurisdiction": "Bengaluru Metropolitan Area",
+    "aliases": [
+      "BBMP",
+      "Bangalore",
+      "Bangalore Municipal Corporation",
+      "Bangalore Nagar Nigam",
+      "Bengaluru",
+      "Bengaluru Mahanagar Palika",
+      "Bengaluru Municipal Corporation",
+      "Bengaluru Nagar Nigam",
+      "Bruhat Bengaluru",
+      "Bruhat Bengaluru Mahanagara Palike",
+      "Bruhat Bengaluru Municipal Corporation",
+      "Bruhat Bengaluru Nagar Nigam"
+    ],
+    "centroid": [
+      77.602979,
+      12.97633
+    ],
+    "boundary_status": "needs_review"
+  },
+  {
+    "id": "mysuru-city-corporation",
+    "name": "Mysuru City Corporation (MCC)",
+    "short_name": "MCC",
+    "state": "Karnataka",
+    "emails": [
+      "ccommysuru@gmail.com"
+    ],
+    "helpline": "0821-2418800",
+    "website": "https://mysurucity.gov.in",
+    "jurisdiction": "Mysuru City",
+    "aliases": [
+      "MCC",
+      "Mysore",
+      "Mysore Municipal Corporation",
+      "Mysore Nagar Nigam",
+      "Mysuru",
+      "Mysuru City Corporation",
+      "Mysuru Mahanagar Palika",
+      "Mysuru Municipal Corporation",
+      "Mysuru Nagar Nigam"
+    ],
+    "centroid": [
+      76.646332,
+      12.309597
+    ],
+    "boundary_status": "needs_review"
+  },
+  {
+    "id": "greater-chennai-corporation",
+    "name": "Greater Chennai Corporation (GCC)",
+    "short_name": "GCC",
+    "state": "Tamil Nadu",
+    "emails": [
+      "commissioner@chennaicorporation.gov.in"
+    ],
+    "helpline": "1913 / Namma Chennai App Integration",
+    "website": "https://chennaicorporation.gov.in",
+    "jurisdiction": "Chennai Metropolitan Area",
+    "aliases": [
+      "Chennai",
+      "Chennai Mahanagar Palika",
+      "Chennai Municipal Corporation",
+      "Chennai Nagar Nigam",
+      "GCC",
+      "Greater Chennai",
+      "Greater Chennai Corporation",
+      "Greater Chennai Municipal Corporation",
+      "Greater Chennai Nagar Nigam",
+      "Madras",
+      "Madras Municipal Corporation",
+      "Madras Nagar Nigam"
+    ],
+    "centroid": [
+      80.231202,
+      13.062856
+    ],
+    "boundary_status": "needs_review"
+  },
+  {
+    "id": "madurai-city-municipal-corporation",
+    "name": "Madurai City Municipal Corporation",
+    "short_name": "MCMC",
+    "state": "Tamil Nadu",
+    "emails": [
+      "commr.madurai@tn.gov.in"
+    ],
+    "helpline": "0452-2530111",
+    "website": "https://maduraicorporation.co.in",
+    "jurisdiction": "Madurai City",
+    "aliases": [
+      "MCMC",
+      "Madurai",
+      "Madurai Mahanagar Palika",
+      "Madurai Municipal Corporation",
+      "Madurai Nagar Nigam"
+    ],
+    "centroid": [
+      78.10195,
+      9.912557
+    ],
+    "boundary_status": "needs_review"
+  },
+  {
+    "id": "coimbatore-city-municipal-corporation",
+    "name": "Coimbatore City Municipal Corporation",
+    "short_name": "CCMC",
+    "state": "Tamil Nadu",
+    "emails": [
+      "commr.coimbatore@tn.gov.in"
+    ],
+    "helpline": "0422-2396026",
+    "website": "https://ccmc.gov.in",
+    "jurisdiction": "Coimbatore City",
+    "aliases": [
+      "CCMC",
+      "Coimbatore",
+      "Coimbatore Mahanagar Palika",
+      "Coimbatore Municipal Corporation",
+      "Coimbatore Nagar Nigam"
+    ],
+    "centroid": [
+      76.976352,
+      11.020107
+    ],
+    "boundary_status": "verified_community"
+  },
+  {
+    "id": "greater-hyderabad-municipal-corporation",
+    "name": "Greater Hyderabad Municipal Corporation (GHMC)",
+    "short_name": "GHMC",
+    "state": "Telangana",
+    "emails": [
+      "comm-ghmc@telangana.gov.in"
+    ],
+    "helpline": "040-21111111 (GHMC Helpline)",
+    "website": "https://www.ghmc.gov.in",
+    "jurisdiction": "Hyderabad Metropolitan Area",
+    "aliases": [
+      "GHMC",
+      "Greater Hyderabad Municipal Corporation",
+      "Hyderabad",
+      "Hyderabad Mahanagar Palika",
+      "Hyderabad Municipal Corporation",
+      "Hyderabad Nagar Nigam"
+    ],
+    "centroid": [
+      78.454725,
+      17.426753
+    ],
+    "boundary_status": "needs_review"
+  },
+  {
+    "id": "vijayawada-municipal-corporation",
+    "name": "Vijayawada Municipal Corporation (VMC)",
+    "short_name": "VMC",
+    "state": "Andhra Pradesh",
+    "emails": [
+      "comm_vmc@ap.gov.in"
+    ],
+    "helpline": "0866-2422515",
+    "website": "https://www.vmc.gov.in",
+    "jurisdiction": "Vijayawada City",
+    "aliases": [
+      "VMC",
+      "Vijayawada",
+      "Vijayawada Mahanagar Palika",
+      "Vijayawada Municipal Corporation",
+      "Vijayawada Nagar Nigam"
+    ],
+    "centroid": [
+      80.639754,
+      16.521808
+    ],
+    "boundary_status": "needs_review"
+  },
+  {
+    "id": "ahmedabad-municipal-corporation",
+    "name": "Ahmedabad Municipal Corporation (AMC)",
+    "short_name": "AMC",
+    "state": "Gujarat",
+    "emails": [
+      "info@ahmedabadcity.gov.in"
+    ],
+    "helpline": "079-25357333 / Citizen Portal Support",
+    "website": "https://ahmedabadcity.gov.in",
+    "jurisdiction": "Ahmedabad City",
+    "aliases": [
+      "AMC",
+      "Ahmedabad",
+      "Ahmedabad Mahanagar Palika",
+      "Ahmedabad Municipal Corporation",
+      "Ahmedabad Nagar Nigam"
+    ],
+    "centroid": [
+      72.573961,
+      23.022991
+    ],
+    "boundary_status": "verified_community"
+  },
+  {
+    "id": "vadodara-municipal-corporation",
+    "name": "Vadodara Municipal Corporation (VMC)",
+    "short_name": "VMC",
+    "state": "Gujarat",
+    "emails": [
+      "vmccomm@vmc.gov.in"
+    ],
+    "helpline": "1800 233 5267",
+    "website": "https://www.vmc.gov.in",
+    "jurisdiction": "Vadodara City",
+    "aliases": [
+      "Baroda",
+      "Baroda Municipal Corporation",
+      "Baroda Nagar Nigam",
+      "VMC",
+      "Vadodara",
+      "Vadodara Mahanagar Palika",
+      "Vadodara Municipal Corporation",
+      "Vadodara Nagar Nigam"
+    ],
+    "centroid": [
+      73.190766,
+      22.298077
+    ],
+    "boundary_status": "verified_community"
+  },
+  {
+    "id": "lucknow-municipal-corporation",
+    "name": "Lucknow Municipal Corporation (LMC)",
+    "short_name": "LMC",
+    "state": "Uttar Pradesh",
+    "emails": [
+      "nnlko@nic.in"
+    ],
+    "helpline": "0522-2637651 / 1533",
+    "website": "https://lmc.up.gov.in",
+    "jurisdiction": "Lucknow City",
+    "aliases": [
+      "LMC",
+      "Lucknow",
+      "Lucknow Mahanagar Palika",
+      "Lucknow Municipal Corporation",
+      "Lucknow Nagar Nigam"
+    ],
+    "centroid": [
+      80.930419,
+      26.849745
+    ],
+    "boundary_status": "verified_community"
+  },
+  {
+    "id": "kanpur-nagar-nigam",
+    "name": "Kanpur Nagar Nigam",
+    "short_name": "KNN",
+    "state": "Uttar Pradesh",
+    "emails": [
+      "nnkanpur@yahoo.com"
+    ],
+    "helpline": "0512-2526004",
+    "website": "http://nnkanpur.com",
+    "jurisdiction": "Kanpur City",
+    "aliases": [
+      "Cawnpore",
+      "Cawnpore Municipal Corporation",
+      "Cawnpore Nagar Nigam",
+      "KNN",
+      "Kanpur",
+      "Kanpur Mahanagar Palika",
+      "Kanpur Municipal Corporation"
+    ],
+    "centroid": [
+      80.330583,
+      26.436587
+    ],
+    "boundary_status": "verified_community"
+  },
+  {
+    "id": "agra-nagar-nigam",
+    "name": "Agra Nagar Nigam",
+    "short_name": "ANN",
+    "state": "Uttar Pradesh",
+    "emails": [
+      "nnagra@gmail.com"
+    ],
+    "helpline": "0562-2265005",
+    "website": "https://nagarnigamagra.com",
+    "jurisdiction": "Agra City",
+    "aliases": [
+      "ANN",
+      "Agra",
+      "Agra Mahanagar Palika",
+      "Agra Municipal Corporation"
+    ],
+    "centroid": [
+      78.020136,
+      27.191341
+    ],
+    "boundary_status": "needs_review"
+  },
+  {
+    "id": "kolkata-municipal-corporation",
+    "name": "Kolkata Municipal Corporation (KMC)",
+    "short_name": "KMC",
+    "state": "West Bengal",
+    "emails": [
+      "municipal_commissioner@kmcgov.in"
+    ],
+    "helpline": "033-2286-1212",
+    "website": "https://www.kmcgov.in",
+    "jurisdiction": "Kolkata City Area",
+    "aliases": [
+      "Calcutta",
+      "Calcutta Municipal Corporation",
+      "Calcutta Nagar Nigam",
+      "KMC",
+      "Kolkata",
+      "Kolkata Mahanagar Palika",
+      "Kolkata Municipal Corporation",
+      "Kolkata Nagar Nigam"
+    ],
+    "centroid": [
+      88.354503,
+      22.520011
+    ],
+    "boundary_status": "needs_review"
+  },
+  {
+    "id": "patna-municipal-corporation",
+    "name": "Patna Municipal Corporation (PMC)",
+    "short_name": "PMC",
+    "state": "Bihar",
+    "emails": [
+      "patnamc-bih@gov.in",
+      "pmcprda@gmail.com"
+    ],
+    "helpline": "1800-345-6432 (Control Room)",
+    "website": "https://www.pmc.bihar.gov.in",
+    "jurisdiction": "Patna City",
+    "aliases": [
+      "PMC",
+      "Patna",
+      "Patna Mahanagar Palika",
+      "Patna Municipal Corporation",
+      "Patna Nagar Nigam"
+    ],
+    "centroid": [
+      85.118705,
+      25.600404
+    ],
+    "boundary_status": "needs_review"
+  },
+  {
+    "id": "bhopal-municipal-corporation",
+    "name": "Bhopal Municipal Corporation (BMC)",
+    "short_name": "BMC",
+    "state": "Madhya Pradesh",
+    "emails": [
+      "commissioner_bmc@mp.gov.in"
+    ],
+    "helpline": "0755-2701000 / 155304",
+    "website": "https://www.mpurban.gov.in/bhopal",
+    "jurisdiction": "Bhopal City",
+    "aliases": [
+      "BMC",
+      "Bhopal",
+      "Bhopal Mahanagar Palika",
+      "Bhopal Municipal Corporation",
+      "Bhopal Nagar Nigam"
+    ],
+    "centroid": [
+      77.41205,
+      23.247277
+    ],
+    "boundary_status": "needs_review"
+  },
+  {
+    "id": "indore-municipal-corporation",
+    "name": "Indore Municipal Corporation (IMC)",
+    "short_name": "IMC",
+    "state": "Madhya Pradesh",
+    "emails": [
+      "imc@mp.gov.in"
+    ],
+    "helpline": "0731-2535555 / 1913",
+    "website": "https://imcindore.org",
+    "jurisdiction": "Indore City",
+    "aliases": [
+      "IMC",
+      "Indore",
+      "Indore Mahanagar Palika",
+      "Indore Municipal Corporation",
+      "Indore Nagar Nigam"
+    ],
+    "centroid": [
+      75.70898,
+      22.763353
+    ],
+    "boundary_status": "needs_review"
+  },
+  {
+    "id": "gwalior-municipal-corporation",
+    "name": "Gwalior Municipal Corporation",
+    "short_name": "GMC",
+    "state": "Madhya Pradesh",
+    "emails": [
+      "gmcnagarnigam@gmail.com"
+    ],
+    "helpline": "0751-2438333",
+    "website": "https://nagarnigamgwalior.nic.in",
+    "jurisdiction": "Gwalior City",
+    "aliases": [
+      "GMC",
+      "Gwalior",
+      "Gwalior Mahanagar Palika",
+      "Gwalior Nagar Nigam"
+    ],
+    "centroid": [
+      78.186584,
+      26.22168
+    ],
+    "boundary_status": "needs_review"
+  },
+  {
+    "id": "jaipur-municipal-corporation",
+    "name": "Jaipur Municipal Corporation (Heritage & Greater)",
+    "short_name": "JMC",
+    "state": "Rajasthan",
+    "emails": [
+      "jaipurmcgreater@gmail.com"
+    ],
+    "helpline": "0141-2222403",
+    "website": "http://www.jaipurmc.org",
+    "jurisdiction": "Jaipur City",
+    "aliases": [
+      "JMC",
+      "Jaipur",
+      "Jaipur Mahanagar Palika",
+      "Jaipur Municipal Corporation",
+      "Jaipur Nagar Nigam"
+    ],
+    "centroid": [
+      75.802188,
+      26.893432
+    ],
+    "boundary_status": "verified_osm"
+  },
+  {
+    "id": "jodhpur-municipal-corporation",
+    "name": "Jodhpur Municipal Corporation (North & South)",
+    "short_name": "JMC",
+    "state": "Rajasthan",
+    "emails": [
+      "jodhpurmc@gmail.com"
+    ],
+    "helpline": "0291-2544211",
+    "website": "https://www.jodhpurmc.org",
+    "jurisdiction": "Jodhpur City",
+    "aliases": [
+      "JMC",
+      "Jodhpur",
+      "Jodhpur Mahanagar Palika",
+      "Jodhpur Municipal Corporation",
+      "Jodhpur Nagar Nigam"
+    ],
+    "centroid": [
+      73.025865,
+      26.27313
+    ],
+    "boundary_status": "needs_review"
+  },
+  {
+    "id": "faridabad-municipal-corporation",
+    "name": "Faridabad Municipal Corporation (MCF)",
+    "short_name": "MCF",
+    "state": "Haryana",
+    "emails": [
+      "mcf@mcf.gov.in"
+    ],
+    "helpline": "0129-2411604",
+    "website": "https://mcf.gov.in",
+    "jurisdiction": "Faridabad City",
+    "aliases": [
+      "Faridabad",
+      "Faridabad Mahanagar Palika",
+      "Faridabad Municipal Corporation",
+      "Faridabad Nagar Nigam",
+      "MCF"
+    ],
+    "centroid": [
+      77.297901,
+      28.408738
+    ],
+    "boundary_status": "verified_community"
+  },
+  {
+    "id": "kochi-municipal-corporation",
+    "name": "Kochi Municipal Corporation",
+    "short_name": "KMC",
+    "state": "Kerala",
+    "emails": [
+      "secretary@cochinmunicipalcorporation.kerala.gov.in"
+    ],
+    "helpline": "0484-2369007",
+    "website": "https://cochincorporation.lsgkerala.gov.in",
+    "jurisdiction": "Kochi City",
+    "aliases": [
+      "Cochin",
+      "Cochin Municipal Corporation",
+      "Cochin Nagar Nigam",
+      "KMC",
+      "Kochi",
+      "Kochi Mahanagar Palika",
+      "Kochi Nagar Nigam"
+    ],
+    "centroid": [
+      76.286255,
+      9.967268
+    ],
+    "boundary_status": "verified_community"
+  },
+  {
+    "id": "bhubaneswar-municipal-corporation",
+    "name": "Bhubaneswar Municipal Corporation (BMC)",
+    "short_name": "BMC",
+    "state": "Odisha",
+    "emails": [
+      "support@bmc.gov.in"
+    ],
+    "helpline": "1929",
+    "website": "https://www.bmc.gov.in",
+    "jurisdiction": "Bhubaneswar City",
+    "aliases": [
+      "BMC",
+      "Bhubaneswar",
+      "Bhubaneswar Mahanagar Palika",
+      "Bhubaneswar Municipal Corporation",
+      "Bhubaneswar Nagar Nigam"
+    ],
+    "centroid": [
+      85.827526,
+      20.291974
+    ],
+    "boundary_status": "verified_osm"
+  },
+  {
+    "id": "chandigarh-municipal-corporation",
+    "name": "Chandigarh Municipal Corporation",
+    "short_name": "CMC",
+    "state": "Chandigarh",
+    "emails": [
+      "mc.chandigarh@nic.in"
+    ],
+    "helpline": "0172-2780004",
+    "website": "https://mcchandigarh.gov.in",
+    "jurisdiction": "Chandigarh UT",
+    "aliases": [
+      "CMC",
+      "Chandigarh",
+      "Chandigarh Mahanagar Palika",
+      "Chandigarh Nagar Nigam"
+    ],
+    "centroid": [
+      76.780363,
+      30.729196
+    ],
+    "boundary_status": "verified_community"
+  }
+]

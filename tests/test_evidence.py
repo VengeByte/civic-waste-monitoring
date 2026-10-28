@@ -152,7 +152,6 @@ def test_report_response_contains_report_id_and_evidence_url():
     assert body["report_id"]
     assert draft["evidence_url"].endswith(f"/api/evidence/{body['report_id']}")
     assert draft["evidence_url"] in draft["body"]
-    assert urllib.parse.quote(draft["evidence_url"]) in draft["whatsapp_url"]
     assert draft["evidence_expires_at"].endswith("Z")
     assert "Photo Evidence" in draft["body"]
 
@@ -206,12 +205,14 @@ def test_negative_report_does_not_retain_evidence():
     assert len(EVIDENCE_STORE) == 0
 
 
-def test_frontend_exposes_evidence_and_photo_email_controls():
+def test_frontend_exposes_evidence_and_gmail_draft_controls():
     response = client.get("/")
 
     assert response.status_code == 200
     assert "Evidence link" in response.text
-    assert "Email + Attach Photo" in response.text
+    assert "Send via Gmail" in response.text
+    assert "Open in Mail Client" not in response.text
+    assert "WhatsApp" not in response.text
 
 
 # ============================================================================

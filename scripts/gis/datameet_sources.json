@@ -1,0 +1,67 @@
+{
+  "_meta": {
+    "source": "DataMeet Municipal Spatial Data",
+    "source_url": "https://github.com/datameet/Municipal_Spatial_Data",
+    "commit": "9b4d1c2ece54cdeb6f5e8bad9ccad7844f783b17",
+    "retrieved_at": "2023-11-16T09:04:46Z",
+    "license": "CC BY 4.0",
+    "attribution": "Maps provided by Spatial Data of Municipalities (Maps) Project by DataMeet, CC BY 4.0."
+  },
+  "overrides": {
+    "brihanmumbai-municipal-corporation": {
+      "path": "vendor/datameet/Mumbai/BMC_Wards.geojson",
+      "dissolve": true,
+      "label": "BMC wards"
+    },
+    "pune-municipal-corporation": {
+      "path": "vendor/datameet/Pune/pune-admin-wards_2017.geojson",
+      "dissolve": true,
+      "label": "PMC admin wards 2017"
+    },
+    "pimpri-chinchwad-municipal-corporation": {
+      "path": "vendor/datameet/PCMC/pcmc-electoral-wards.geojson",
+      "dissolve": true,
+      "label": "PCMC electoral wards"
+    },
+    "ahmedabad-municipal-corporation": {
+      "path": "vendor/datameet/Ahmedabad/Wards.geojson",
+      "dissolve": true,
+      "label": "AMC wards"
+    },
+    "vadodara-municipal-corporation": {
+      "path": "vendor/datameet/Vadodara/vardodara_wards.geojson",
+      "dissolve": true,
+      "label": "VMC wards"
+    },
+    "lucknow-municipal-corporation": {
+      "path": "vendor/datameet/Lucknow/Lucknow_city_boundary.geojson",
+      "dissolve": false,
+      "label": "Lucknow city boundary"
+    },
+    "kanpur-nagar-nigam": {
+      "path": "vendor/datameet/Kanpur/Kanpur_city_boundaries.geojson",
+      "dissolve": false,
+      "label": "Kanpur city boundary"
+    },
+    "kochi-municipal-corporation": {
+      "path": "vendor/datameet/Kochi/KCH_Corporation_Boundary.geojson",
+      "dissolve": false,
+      "label": "Kochi corporation boundary"
+    },
+    "faridabad-municipal-corporation": {
+      "path": "vendor/datameet/Faridabad/Faridabad_Boundary.geojson",
+      "dissolve": false,
+      "label": "Faridabad boundary"
+    },
+    "chandigarh-municipal-corporation": {
+      "path": "vendor/datameet/Chandigarh/Chandigarh_Boundary.geojson",
+      "dissolve": false,
+      "label": "Chandigarh boundary"
+    },
+    "coimbatore-city-municipal-corporation": {
+      "path": "vendor/datameet/Coimbatore/Cbe2011Wards.geojson",
+      "dissolve": true,
+      "label": "Coimbatore 2011 wards"
+    }
+  }
+}

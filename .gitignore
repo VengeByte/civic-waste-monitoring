@@ -6,3 +6,11 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 tests/output_*.jpg
+
+# Offline GIS acquisition cache and interim outputs
+.cache/
+scripts/gis/output/
+
+# Raw DataMeet archive; only vendor/datameet/ is tracked
+Municipal_Spatial_Data-master/
+Municipal_Spatial_Data-master.zip

@@ -356,6 +356,8 @@
                   <span class="text-[10px] font-mono uppercase text-slate-400">Designated Jurisdiction</span>
                   <h4 class="font-bold text-slate-200 mt-1" id="jurisdiction-name">--</h4>
                   <p class="text-[11px] text-emerald-400 font-semibold mt-0.5" id="ward-name">--</p>
+                  <p class="text-[10px] text-slate-500 mt-1" id="match-basis"></p>
+                  <a id="municipal-website" href="#" target="_blank" rel="noopener noreferrer" class="hidden mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-teal-300 hover:text-teal-200 underline underline-offset-2">Open municipal portal ↗</a>
                 </div>
 
                 <!-- Identified Categories Card -->
@@ -368,14 +370,14 @@
 
                 <!-- Officer in Charge Card -->
                 <div class="col-span-2 p-3.5 rounded-xl bg-slate-900/60 border border-slate-700/60 flex flex-col gap-1">
-                  <span class="text-[10px] font-mono uppercase text-slate-400">Assigned Sanitary Officers</span>
+                  <span class="text-[10px] font-mono uppercase text-slate-400">Assigned Municipal Contact</span>
                   <div class="flex items-center justify-between text-[11px] text-slate-300">
-                    <span>Sanitary Inspector:</span>
+                    <span id="officer-label">Sanitary Inspector:</span>
                     <span class="font-mono text-emerald-400 font-semibold" id="officer-email">--</span>
                   </div>
-                  <div class="flex items-center justify-between text-[11px] text-slate-300">
-                    <span>WhatsApp Helpline:</span>
-                    <span class="font-mono text-teal-400 font-semibold" id="officer-whatsapp">--</span>
+                  <div id="helpline-row" class="flex items-center justify-between text-[11px] text-slate-300">
+                    <span>Helpline:</span>
+                    <span class="font-mono text-teal-400 font-semibold" id="officer-helpline">--</span>
                   </div>
                 </div>
 
@@ -425,37 +427,18 @@
 
             <textarea id="complaint-textarea" rows="12" class="w-full bg-slate-900/90 border border-slate-700 rounded-xl p-4 text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500 leading-relaxed resize-y"></textarea>
 
-            <!-- Handoff & Dispatch Action Buttons -->
+            <!-- Handoff & Dispatch Action -->
             <div class="pt-2">
-              <span class="text-[11px] font-mono uppercase tracking-wider text-slate-400 block mb-2.5">Instant Municipal Dispatch Channels:</span>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <span class="text-[11px] font-mono uppercase tracking-wider text-slate-400 block mb-2.5">Send Complaint with Photo Evidence:</span>
 
-                <!-- 1. Open in Gmail (Google Red #EA4335) -->
-                <button type="button" id="btn-gmail" onclick="dispatchGmail()" class="py-3 px-4 rounded-xl bg-[#EA4335] hover:bg-[#d9382b] text-white font-semibold text-xs shadow-lg shadow-red-500/20 active:scale-[0.98] transition flex items-center justify-center gap-2">
-                  <span>✉️</span> Open in Gmail
-                </button>
+              <button type="button" id="btn-gmail" onclick="sendViaGmail()" class="w-full py-3.5 px-4 rounded-xl bg-[#EA4335] hover:bg-[#d9382b] text-white font-semibold text-sm shadow-lg shadow-red-500/20 active:scale-[0.98] transition flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                <span>✉️</span> Send via Gmail
+              </button>
 
-                <!-- 2. Send via WhatsApp (WhatsApp Green #25D366) -->
-                <button type="button" id="btn-whatsapp" onclick="dispatchWhatsApp()" class="py-3 px-4 rounded-xl bg-[#25D366] hover:bg-[#20be5b] text-white font-semibold text-xs shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition flex items-center justify-center gap-2">
-                  <span>💬</span> Send via WhatsApp
-                </button>
-
-                <!-- 3. Default Mail Client -->
-                <button type="button" id="btn-mailto" onclick="dispatchMailto()" class="py-3 px-4 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-100 font-semibold text-xs shadow-lg active:scale-[0.98] transition flex items-center justify-center gap-2">
-                  <span>📬</span> Default Mail Client
-                </button>
-
-                <!-- 4. Server-side email with the sanitized photo attached -->
-                <button type="button" id="btn-server-email" onclick="dispatchServerEmail()" class="py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
-                  <span>📎</span> Email + Attach Photo
-                </button>
-
-              </div>
-
-              <!-- Server-side delivery status -->
+              <!-- Delivery status -->
               <p id="email-status" class="hidden mt-3 p-2.5 rounded-lg text-[11px] border"></p>
-              <p class="text-[10px] text-slate-500 mt-2">
-                “Email + Attach Photo” sends the letter and the PII-blurred JPEG from the server; it requires SMTP to be configured.
+              <p id="gmail-account-note" class="text-[10px] text-slate-500 mt-2">
+                Gmail opens with the complaint and PII-blurred photo already attached as a draft. Choose the sender account, review it, and press Send.
               </p>
             </div>
 
@@ -480,11 +463,16 @@
     let leafletMap = null;
     let marker = null;
     let currentResponseData = null;
+    let gmailConfigured = false;
+    let gmailConnected = false;
+    let gmailEmail = null;
+    let gmailAuthPending = false;
 
     // Initialize Map and Defaults on DOMContentLoaded
     document.addEventListener('DOMContentLoaded', () => {
       initMap();
       refreshTimestamp();
+      refreshGmailStatus();
     });
 
     // 1. Leaflet Map Initialization
@@ -933,10 +921,33 @@
 
       // 4. Authority Details
       const auth = data.authority || {};
+      const matchType = auth.match_type || 'ward';
+      const isWard = matchType === 'ward';
+      const isCentral = matchType === 'central_fallback';
+
       document.getElementById('jurisdiction-name').innerText = auth.municipality_name || 'Municipal Corporation';
-      document.getElementById('ward-name').innerText = `Ward ${auth.ward_number || 'N/A'}: ${auth.ward_name || 'Local Area'}`;
-      document.getElementById('officer-email').innerText = auth.sanitary_inspector_email || 'sanitation@municipal.gov.in';
-      document.getElementById('officer-whatsapp').innerText = auth.whatsapp_helpline || '+91-9220592205';
+      document.getElementById('ward-name').innerText = isWard
+        ? `Ward ${auth.ward_number || 'N/A'}: ${auth.ward_name || 'Local Area'}`
+        : (auth.ward_name || auth.municipality_name || 'Municipal Corporation');
+      document.getElementById('match-basis').innerText = isWard
+        ? 'Matched by ward boundary'
+        : isCentral
+          ? 'Outside covered corporation — central grievance fallback'
+          : `${auth.boundary_quality || 'municipal'} boundary · matched by location pin`;
+      document.getElementById('officer-label').innerText = isWard ? 'Sanitary Inspector:' : 'Municipal Email:';
+      document.getElementById('officer-email').innerText = auth.sanitary_inspector_email || 'Not available';
+      const helpline = auth.helpline || '';
+      document.getElementById('officer-helpline').innerText = helpline || 'Not available';
+      document.getElementById('helpline-row').style.display = helpline ? 'flex' : 'none';
+
+      const websiteLink = document.getElementById('municipal-website');
+      if (auth.website && /^https?:\/\//i.test(auth.website)) {
+        websiteLink.href = auth.website;
+        websiteLink.classList.remove('hidden');
+      } else {
+        websiteLink.href = '#';
+        websiteLink.classList.add('hidden');
+      }
 
       const streetAddr = auth.formatted_address || auth.resolved_address || `${auth.latitude}, ${auth.longitude}`;
       document.getElementById('resolved-address-text').innerText = streetAddr;
@@ -972,88 +983,131 @@
       positiveCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    // 5. Dispatch Action Handlers
-    function dispatchGmail() {
-      if (!currentResponseData || !currentResponseData.draft) return;
-      const textareaVal = document.getElementById('complaint-textarea').value;
-      let url = currentResponseData.draft.gmail_web_url;
-      if (textareaVal && currentResponseData.draft) {
-        const to = encodeURIComponent(currentResponseData.draft.to || '');
-        const cc = encodeURIComponent((currentResponseData.draft.cc || []).join(','));
-        const su = encodeURIComponent(currentResponseData.draft.subject || '');
-        const body = encodeURIComponent(textareaVal);
-        url = `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&cc=${cc}&su=${su}&body=${body}`;
-      }
-      if (url) window.open(url, '_blank');
-    }
-
-    function dispatchWhatsApp() {
-      if (!currentResponseData || !currentResponseData.draft) return;
-      const textareaVal = document.getElementById('complaint-textarea').value;
-      let url = currentResponseData.draft.whatsapp_url;
-      const phone = (currentResponseData.authority && currentResponseData.authority.whatsapp_helpline) || '919220592205';
-      const cleanPhone = phone.replace(/\D/g, '');
-      if (textareaVal) {
-        const evidence = currentResponseData.draft.evidence_url;
-        const summary = `*CIVIC GRIEVANCE NOTICE*\n${textareaVal.substring(0, 600)}...`
-          + (evidence ? `\n\nPhoto evidence: ${evidence}` : '')
-          + `\n\n_Full details submitted to Municipal Portal._`;
-        url = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(summary)}`;
-      }
-      if (url) window.open(url, '_blank');
-    }
-
-    function dispatchMailto() {
-      if (!currentResponseData || !currentResponseData.draft) return;
-      const textareaVal = document.getElementById('complaint-textarea').value;
-      let url = currentResponseData.draft.mailto_url;
-      if (textareaVal && currentResponseData.draft) {
-        const to = encodeURIComponent(currentResponseData.draft.to || '');
-        const cc = encodeURIComponent((currentResponseData.draft.cc || []).join(','));
-        const su = encodeURIComponent(currentResponseData.draft.subject || '');
-        const body = encodeURIComponent(textareaVal);
-        url = `mailto:${to}?cc=${cc}&subject=${su}&body=${body}`;
-      }
-      if (url) {
-        const link = document.createElement('a');
-        link.href = url;
-        link.click();
+    // 5. Gmail OAuth + draft creation. The JPEG is attached by the backend.
+    async function refreshGmailStatus() {
+      try {
+        const response = await fetch(`${API_BASE}/auth/google/status`, { credentials: 'same-origin' });
+        if (!response.ok) return;
+        const status = await response.json();
+        gmailConfigured = Boolean(status.configured);
+        gmailConnected = Boolean(status.connected);
+        gmailEmail = status.email || null;
+        updateGmailNote();
+      } catch (err) {
+        console.warn('Could not read Gmail status:', err);
       }
     }
 
-    // Server-side delivery: complaint text + sanitized JPEG attached by the backend.
-    async function dispatchServerEmail() {
+    function updateGmailNote() {
+      const note = document.getElementById('gmail-account-note');
+      if (!note) return;
+      if (!gmailConfigured) {
+        note.innerText = 'Gmail integration is not configured on this server. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI.';
+      } else if (gmailConnected && gmailEmail) {
+        note.innerText = `Connected as ${gmailEmail}. Gmail opens with the complaint and photo already attached; choose the sender and press Send.`;
+      } else {
+        note.innerText = 'Gmail will ask you to choose the sender account. The complaint and PII-blurred photo are already attached in the draft.';
+      }
+    }
+
+    function openGmailAuth() {
+      gmailAuthPending = true;
+      const popup = window.open(
+        `${API_BASE}/auth/google/start?popup=1`,
+        'gmailAuth',
+        'width=520,height=650'
+      );
+      if (!popup) {
+        gmailAuthPending = false;
+        showEmailStatus('Allow pop-ups for this site, then click Send via Gmail again.', false);
+      }
+    }
+
+    window.addEventListener('message', (event) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data || {};
+      if (data.type === 'gmail-connected') {
+        gmailConnected = true;
+        gmailEmail = data.email || null;
+        updateGmailNote();
+        showEmailStatus(`Gmail connected as ${gmailEmail || 'your account'}. Creating the draft…`, true);
+        if (gmailAuthPending) {
+          gmailAuthPending = false;
+          createGmailDraft();
+        }
+      } else if (data.type === 'gmail-error') {
+        gmailAuthPending = false;
+        showEmailStatus(`Gmail connection failed: ${data.message || 'unknown error'}`, false);
+      }
+    });
+
+    async function sendViaGmail() {
       if (!currentResponseData || !currentResponseData.report_id || !currentResponseData.draft) {
-        showEmailStatus('No retained report is available to email. Submit the report again.', false);
+        showEmailStatus('No retained report is available. Submit the report again.', false);
+        return;
+      }
+      if (!gmailConfigured) {
+        showEmailStatus('Gmail is not configured on this server. Ask the administrator to set the Google OAuth variables.', false);
+        await refreshGmailStatus();
+        return;
+      }
+      if (!gmailConnected) {
+        openGmailAuth();
+        return;
+      }
+      await createGmailDraft();
+    }
+
+    async function createGmailDraft() {
+      if (!currentResponseData || !currentResponseData.report_id || !currentResponseData.draft) {
+        showEmailStatus('No retained report is available. Submit the report again.', false);
         return;
       }
 
-      const btn = document.getElementById('btn-server-email');
+      const btn = document.getElementById('btn-gmail');
       const textareaVal = document.getElementById('complaint-textarea').value;
       btn.disabled = true;
-      showEmailStatus('Sending complaint and sanitized photo…', true, true);
+      showEmailStatus('Creating a Gmail draft with the sanitized photo attached…', true, true);
 
       try {
-        const response = await fetch(`${API_BASE}/api/reports/${encodeURIComponent(currentResponseData.report_id)}/email`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            body: textareaVal,
-            subject: currentResponseData.draft.subject || ''
-          })
-        });
+        const response = await fetch(
+          `${API_BASE}/api/reports/${encodeURIComponent(currentResponseData.report_id)}/gmail-draft`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+              body: textareaVal,
+              subject: currentResponseData.draft.subject || ''
+            })
+          }
+        );
+
+        if (response.status === 401) {
+          gmailConnected = false;
+          showEmailStatus('Gmail authorization expired. Please choose your account again.', false);
+          openGmailAuth();
+          return;
+        }
 
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
           throw new Error(payload.detail || `Server returned HTTP ${response.status}`);
         }
 
-        const count = payload.send_count ? ` (send ${payload.send_count})` : '';
-        showEmailStatus(`✓ ${payload.message || 'Complaint emailed with photo attached.'}${count}`, true);
+        showEmailStatus(
+          `✓ Draft created in ${payload.account_email}. Gmail is opening — choose the sender, review, and press Send.`,
+          true
+        );
+        const url = payload.draft_url;
+        const gmailTab = window.open(url, '_blank');
+        if (!gmailTab) {
+          window.location.href = url;
+        }
       } catch (err) {
-        console.error('Server-side email failed:', err);
+        console.error('Gmail draft creation failed:', err);
         const detail = String(err.message || err);
-        showEmailStatus(`Email not sent: ${detail.substring(0, 320)}`, false);
+        showEmailStatus(`Gmail draft not created: ${detail.substring(0, 320)}`, false);
       } finally {
         btn.disabled = false;
       }

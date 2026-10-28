@@ -1,0 +1,205 @@
+{
+  "generated_at": "2026-10-28T08:43:49Z",
+  "input_file": "C:\\Users\\Anubhav Gupta\\Documents\\DSA project\\scripts\\gis\\input\\countrywide_municipal_corporation_directory.txt",
+  "summary": {
+    "total_corporations": 30,
+    "valid_polygons_extracted": 30,
+    "missing_boundaries": 0,
+    "flagged_for_manual_review": 17,
+    "total_api_queries_logged": 0,
+    "total_network_or_http_failures": 0
+  },
+  "queries": [],
+  "failures": [],
+  "excluded_missing": [
+    {
+      "id": "nashik-municipal-corporation",
+      "name": "Nashik Municipal Corporation (NMC)"
+    },
+    {
+      "id": "hubli-dharwad-municipal-corporation",
+      "name": "Hubli-Dharwad Municipal Corporation (HDMC)"
+    },
+    {
+      "id": "warangal-greater-municipal-corporation",
+      "name": "Warangal Greater Municipal Corporation (GWMC)"
+    },
+    {
+      "id": "greater-visakhapatnam-municipal-corporation",
+      "name": "Greater Visakhapatnam Municipal Corporation (GVMC)"
+    },
+    {
+      "id": "surat-municipal-corporation",
+      "name": "Surat Municipal Corporation (SMC)"
+    },
+    {
+      "id": "rajkot-municipal-corporation",
+      "name": "Rajkot Municipal Corporation (RMC)"
+    },
+    {
+      "id": "ghaziabad-nagar-nigam",
+      "name": "Ghaziabad Nagar Nigam"
+    },
+    {
+      "id": "varanasi-nagar-nigam",
+      "name": "Varanasi Nagar Nigam"
+    },
+    {
+      "id": "howrah-municipal-corporation",
+      "name": "Howrah Municipal Corporation (HMC)"
+    },
+    {
+      "id": "asansol-municipal-corporation",
+      "name": "Asansol Municipal Corporation"
+    },
+    {
+      "id": "gaya-municipal-corporation",
+      "name": "Gaya Municipal Corporation"
+    },
+    {
+      "id": "ludhiana-municipal-corporation",
+      "name": "Ludhiana Municipal Corporation"
+    },
+    {
+      "id": "amritsar-municipal-corporation",
+      "name": "Amritsar Municipal Corporation"
+    },
+    {
+      "id": "municipal-corporation-gurugram",
+      "name": "Municipal Corporation Gurugram (MCG)"
+    },
+    {
+      "id": "thiruvananthapuram-corporation",
+      "name": "Thiruvananthapuram Corporation"
+    },
+    {
+      "id": "cuttack-municipal-corporation",
+      "name": "Cuttack Municipal Corporation (CMC)"
+    },
+    {
+      "id": "ranchi-municipal-corporation",
+      "name": "Ranchi Municipal Corporation (RMC)"
+    },
+    {
+      "id": "raipur-municipal-corporation",
+      "name": "Raipur Municipal Corporation (RMC)"
+    },
+    {
+      "id": "guwahati-municipal-corporation",
+      "name": "Guwahati Municipal Corporation (GMC)"
+    },
+    {
+      "id": "dehradun-municipal-corporation",
+      "name": "Dehradun Municipal Corporation"
+    },
+    {
+      "id": "shimla-municipal-corporation",
+      "name": "Shimla Municipal Corporation"
+    },
+    {
+      "id": "srinagar-municipal-corporation",
+      "name": "Srinagar Municipal Corporation"
+    },
+    {
+      "id": "jammu-municipal-corporation",
+      "name": "Jammu Municipal Corporation"
+    },
+    {
+      "id": "puducherry-municipality-municipal-council",
+      "name": "Puducherry Municipality / Municipal Council"
+    }
+  ],
+  "boundary_rejections": [
+    {
+      "corp_id": "municipal-corporation-of-delhi",
+      "name": "Municipal Corporation of Delhi (MCD)",
+      "state": "Delhi",
+      "query_used": "Delhi, Delhi, India",
+      "reason": "matched_via_city_fallback_query"
+    },
+    {
+      "corp_id": "new-delhi-municipal-council",
+      "name": "New Delhi Municipal Council (NDMC)",
+      "state": "Delhi",
+      "query_used": "New Delhi, Delhi, India",
+      "reason": "matched_via_city_fallback_query"
+    },
+    {
+      "corp_id": "nagpur-municipal-corporation",
+      "name": "Nagpur Municipal Corporation (NMC)",
+      "state": "Maharashtra",
+      "query_used": "Nagpur, Maharashtra, India",
+      "reason": "matched_via_city_fallback_query"
+    },
+    {
+      "corp_id": "thane-municipal-corporation",
+      "name": "Thane Municipal Corporation (TMC)",
+      "state": "Maharashtra",
+      "query_used": "Thane, Maharashtra, India",
+      "reason": "matched_via_city_fallback_query"
+    },
+    {
+      "corp_id": "bruhat-bengaluru-mahanagara-palike",
+      "name": "Bruhat Bengaluru Mahanagara Palike (BBMP)",
+      "state": "Karnataka",
+      "query_used": "Bengaluru, Karnataka, India",
+      "reason": "matched_via_city_fallback_query"
+    },
+    {
+      "corp_id": "mysuru-city-corporation",
+      "name": "Mysuru City Corporation (MCC)",
+      "state": "Karnataka",
+      "query_used": "Mysuru, Karnataka, India",
+      "reason": "matched_via_city_fallback_query"
+    },
+    {
+      "corp_id": "greater-chennai-corporation",
+      "name": "Greater Chennai Corporation (GCC)",
+      "state": "Tamil Nadu",
+      "query_used": "Chennai, Tamil Nadu, India",
+      "reason": "matched_via_city_fallback_query"
+    },
+    {
+      "corp_id": "madurai-city-municipal-corporation",
+      "name": "Madurai City Municipal Corporation",
+      "state": "Tamil Nadu",
+      "query_used": "Madurai, Tamil Nadu, India",
+      "reason": "matched_via_city_fallback_query"
+    },
+    {
+      "corp_id": "greater-hyderabad-municipal-corporation",
+      "name": "Greater Hyderabad Municipal Corporation (GHMC)",
+      "state": "Telangana",
+      "query_used": "Hyderabad, Telangana, India",
+      "reason": "matched_via_city_fallback_query"
+    },
+    {
+      "corp_id": "vijayawada-municipal-corporation",
+      "name": "Vijayawada Municipal Corporation (VMC)",
+      "state": "Andhra Pradesh",
+      "query_used": "Vijayawada, Andhra Pradesh, India",
+      "reason": "matched_via_city_fallback_query"
+    },
+    {
+      "corp_id": "kolkata-municipal-corporation",
+      "name": "Kolkata Municipal Corporation (KMC)",
+      "state": "West Bengal",
+      "query_used": "Kolkata, West Bengal, India",
+      "reason": "matched_via_city_fallback_query"
+    },
+    {
+      "corp_id": "patna-municipal-corporation",
+      "name": "Patna Municipal Corporation (PMC)",
+      "state": "Bihar",
+      "query_used": "Patna, Bihar, India",
+      "reason": "matched_via_city_fallback_query"
+    },
+    {
+      "corp_id": "jodhpur-municipal-corporation",
+      "name": "Jodhpur Municipal Corporation (North & South)",
+      "state": "Rajasthan",
+      "query_used": "Jodhpur, Rajasthan, India",
+      "reason": "matched_via_city_fallback_query"
+    }
+  ]
+}

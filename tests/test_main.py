@@ -129,11 +129,10 @@ class TestMainAPI(unittest.TestCase):
         self.assertIn("Massive pile of uncollected garbage", draft["body"])
         self.assertIn("https://www.google.com/maps?q=30.752,76.775", draft["body"])
 
-        # Verify dispatch URLs
-        self.assertTrue(draft["mailto_url"].startswith("mailto:sanitation.ward12@chd.nic.in"))
-        self.assertIn("cc=moh-mcc%40chd.nic.in", draft["mailto_url"])
-        self.assertTrue(draft["gmail_web_url"].startswith("https://mail.google.com/mail/?view=cm"))
-        self.assertTrue(draft["whatsapp_url"].startswith("https://wa.me/919220592205"))
+        # Legacy URL-based dispatch fields must no longer be emitted.
+        self.assertNotIn("mailto_url", draft)
+        self.assertNotIn("gmail_web_url", draft)
+        self.assertNotIn("whatsapp_url", draft)
 
     @patch("backend.main.analyze_with_vlm")
     @patch("backend.main.blur_pii_in_image")

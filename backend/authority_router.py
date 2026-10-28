@@ -13,11 +13,15 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 from shapely.geometry import Point, shape
+
+from backend.env_loader import load_env_file
+from backend.municipal_directory import get_municipal_directory
 
 # Configure logger
 logger = logging.getLogger("backend.authority_router")
@@ -34,15 +38,24 @@ NOMINATIM_REVERSE_URL = "https://nominatim.openstreetmap.org/reverse"
 NOMINATIM_USER_AGENT = "GarbageCivicMonitor/2.0"
 NOMINATIM_TIMEOUT_SECONDS = 5.0
 
-# Central fallback authority when report coordinates fall outside all known municipal wards
+# Central fallback authority when report coordinates fall outside all covered municipalities
+CENTRAL_GRIEVANCE_EMAIL_DEFAULT = "grievance.central@chd.nic.in"
+
+
+def central_grievance_email() -> str:
+    """Resolve the central fallback email, allowing a deployment override."""
+    load_env_file()
+    return os.getenv("CENTRAL_GRIEVANCE_EMAIL", CENTRAL_GRIEVANCE_EMAIL_DEFAULT).strip()
+
+
 CENTRAL_FALLBACK_AUTHORITY: dict[str, Any] = {
     "municipality_name": "Municipal Grievance Cell (Central)",
     "ward_number": "Unmapped",
     "ward_name": "Central Grievance Zone",
     "sanitary_inspector_email": "grievance.central@chd.nic.in",
-    "moh_email": "moh-mcc@chd.nic.in",
-    "commissioner_email": "commissioner-mcc@chd.nic.in",
-    "whatsapp_helpline": "919220592205",
+    "moh_email": "",
+    "commissioner_email": "",
+    "whatsapp_helpline": "",
     "ward_matched": False,
 }
 
@@ -153,11 +166,10 @@ async def resolve_authority(
     Resolve municipal authority contacts and human-readable address for given coordinates.
 
     1. Reverse geocodes coordinates via OpenStreetMap Nominatim with a 5.0s timeout.
-    2. Performs point-in-polygon containment using Shapely: Point(lon, lat) vs ward polygons.
-    3. If matched, returns complete municipal details, contact emails, WhatsApp helpline,
-       and resolved address.
-    4. If unmapped (outside defined wards), returns safe central fallback dictionary without
-       raising exceptions.
+    2. Performs point-in-polygon containment against Chandigarh ward polygons.
+    3. If no ward matches, checks the 30 covered countrywide municipal polygons.
+    4. If no municipal corporation matches, returns the central grievance fallback so the
+       complaint is still emailed to the central municipal address.
 
     Args:
         lat: Latitude (float).
@@ -198,18 +210,51 @@ async def resolve_authority(
             "moh_email": matched_properties.get("moh_email", ""),
             "commissioner_email": matched_properties.get("commissioner_email", ""),
             "whatsapp_helpline": matched_properties.get("whatsapp_helpline", ""),
+            "helpline": matched_properties.get("whatsapp_helpline", ""),
             "ward_matched": True,
+            "municipal_matched": False,
+            "match_type": "ward",
+            "boundary_quality": "ward",
+            "confidence": "high",
             "latitude": float(lat),
             "longitude": float(lon),
             "resolved_address": resolved_address,
             "formatted_address": resolved_address,
         }
 
-    # 4. Safe Central Fallback Result (outside all polygons)
-    logger.info("Point (%.5f, %.5f) outside all wards. Assigning central fallback authority.", lat, lon)
+    # 3b. Countrywide municipal corporation lookup (30 covered polygons)
+    municipal_directory = get_municipal_directory()
+    municipal_match = municipal_directory.resolve(lat, lon)
+    if municipal_match is not None:
+        logger.info(
+            "Point (%.5f, %.5f) matched municipal corporation %s (%s).",
+            lat,
+            lon,
+            municipal_match.name,
+            municipal_match.boundary_quality,
+        )
+        return municipal_directory.match_to_authority(
+            municipal_match,
+            lat=lat,
+            lon=lon,
+            address=resolved_address,
+        )
+
+    # 4. Safe Central Fallback Result (outside all covered polygons)
+    logger.info(
+        "Point (%.5f, %.5f) outside all covered municipalities. "
+        "Assigning central grievance fallback.",
+        lat,
+        lon,
+    )
     return {
         **CENTRAL_FALLBACK_AUTHORITY,
+        "sanitary_inspector_email": central_grievance_email(),
         "ward_matched": False,
+        "municipal_matched": False,
+        "match_type": "central_fallback",
+        "boundary_quality": "fallback",
+        "confidence": "low",
         "latitude": float(lat),
         "longitude": float(lon),
         "resolved_address": resolved_address,
