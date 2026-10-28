@@ -1,0 +1,84 @@
+{
+  "type": "FeatureCollection",
+  "name": "ChandigarhMunicipalWards",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "municipality_name": "Municipal Corporation Chandigarh",
+        "ward_number": "12",
+        "ward_name": "Sector 15 & 16",
+        "sanitary_inspector_email": "sanitation.ward12@chd.nic.in",
+        "moh_email": "moh-mcc@chd.nic.in",
+        "commissioner_email": "commissioner-mcc@chd.nic.in",
+        "whatsapp_helpline": "919220592205"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [76.7650, 30.7450],
+            [76.7850, 30.7450],
+            [76.7850, 30.7620],
+            [76.7650, 30.7620],
+            [76.7650, 30.7450]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "municipality_name": "Municipal Corporation Chandigarh",
+        "ward_number": "13",
+        "ward_name": "Sector 17 & 22",
+        "sanitary_inspector_email": "sanitation.ward13@chd.nic.in",
+        "moh_email": "moh-mcc@chd.nic.in",
+        "commissioner_email": "commissioner-mcc@chd.nic.in",
+        "whatsapp_helpline": "919220592205"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [76.7650, 30.7300],
+            [76.7850, 30.7300],
+            [76.7850, 30.7450],
+            [76.7650, 30.7450],
+            [76.7650, 30.7300]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "municipality_name": "Municipal Corporation Chandigarh",
+        "ward_number": "24",
+        "ward_name": "Sector 35 & 43",
+        "sanitary_inspector_email": "sanitation.ward24@chd.nic.in",
+        "moh_email": "moh-mcc@chd.nic.in",
+        "commissioner_email": "commissioner-mcc@chd.nic.in",
+        "whatsapp_helpline": "919220592205"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [76.7450, 30.7150],
+            [76.7650, 30.7150],
+            [76.7650, 30.7300],
+            [76.7450, 30.7300],
+            [76.7450, 30.7150]
+          ]
+        ]
+      }
+    }
+  ]
+}

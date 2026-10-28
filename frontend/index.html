@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Civic Garbage & Waste Monitor | Autonomous Municipal Reporting</title>
+  <meta name="description" content="Autonomous civic waste reporting with local PII anonymization, multi-provider Vision LLM inspection, and direct municipal officer handoff.">
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+              900: '#064e3b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- exif-js via CDN for image EXIF GPS extraction -->
+  <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+
+  <style>
+    /* Smooth transition utilities */
+    .fade-enter {
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+    .fade-enter-active {
+      opacity: 1 !important;
+      transform: translateY(0) !important;
+    }
+    /* Pulse glow */
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.25); }
+      50% { box-shadow: 0 0 25px rgba(16, 185, 129, 0.45); }
+    }
+    .glow-emerald {
+      animation: pulse-glow 3s infinite;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen antialiased selection:bg-emerald-500 selection:text-white">
+
+  <!-- Top Glass Navigation Bar -->
+  <header class="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-slate-800">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-xl shadow-lg shadow-emerald-500/20">
+          ♻️
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            Civic Garbage & Waste Monitor
+            <span class="text-[10px] uppercase font-mono font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">v2.0</span>
+          </h1>
+          <p class="text-xs text-slate-400">Autonomous Vision Detection, Local PII Anonymization & Municipal Ward Handoff</p>
+        </div>
+      </div>
+
+      <!-- Feature Badges -->
+      <div class="flex flex-wrap items-center gap-2 text-xs">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/90 text-emerald-300 border border-emerald-500/30 font-medium shadow-sm">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          Local PII Protection
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/90 text-teal-300 border border-teal-500/30 font-medium shadow-sm">
+          ⚡ Zero-Cost VLM Inspection
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/90 text-cyan-300 border border-cyan-500/30 font-medium shadow-sm">
+          🏛️ Direct Municipal Handoff
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+
+    <!-- Global Alert / Error Box (Hidden by default) -->
+    <div id="error-banner" class="hidden mb-6 p-4 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-200 text-sm flex items-start gap-3 shadow-lg">
+      <span class="text-lg">⚠️</span>
+      <div class="flex-1">
+        <h4 class="font-semibold text-rose-100" id="error-title">Request Error</h4>
+        <p class="text-rose-300 text-xs mt-0.5" id="error-message">Unable to reach the backend reporting service.</p>
+      </div>
+      <button onclick="dismissError()" class="text-rose-400 hover:text-rose-200 text-xs font-bold uppercase">&times;</button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+      <!-- LEFT COLUMN: Input Form Section (5 cols) -->
+      <section class="lg:col-span-5 flex flex-col gap-6">
+        <div class="bg-slate-800/60 backdrop-blur border border-slate-700/60 rounded-2xl p-6 shadow-xl">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-700/60 mb-5">
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs">1</span>
+              Submit Civic Incident
+            </h2>
+            <span class="text-xs text-slate-400">Step 1 of 2</span>
+          </div>
+
+          <form id="report-form" class="flex flex-col gap-5" onsubmit="handleFormSubmit(event)">
+
+            <!-- 1. Image Upload Dropzone -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                Report Photograph <span class="text-rose-400">*</span>
+              </label>
+
+              <div id="dropzone"
+                   onclick="document.getElementById('file-input').click()"
+                   ondragover="handleDragOver(event)"
+                   ondragleave="handleDragLeave(event)"
+                   ondrop="handleDrop(event)"
+                   class="relative group border-2 border-dashed border-slate-600 hover:border-emerald-500 rounded-xl p-6 text-center cursor-pointer transition-all bg-slate-900/40 hover:bg-slate-800/60">
+                <input type="file" id="file-input" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+
+                <div id="upload-prompt" class="flex flex-col items-center gap-2">
+                  <div class="w-12 h-12 rounded-full bg-slate-800 group-hover:bg-emerald-500/20 text-slate-400 group-hover:text-emerald-400 flex items-center justify-center text-2xl transition-colors">
+                    📸
+                  </div>
+                  <p class="text-sm font-medium text-slate-200">
+                    <span class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2">Click to browse</span> or drag and drop
+                  </p>
+                  <p class="text-[11px] text-slate-400">Supports JPEG, PNG, WebP (faces & plates will be blurred)</p>
+                </div>
+
+                <!-- Client-Side Preview (Hidden initially) -->
+                <div id="image-preview-wrapper" class="hidden relative flex flex-col items-center">
+                  <img id="image-preview" src="" alt="Selected Preview" class="w-full max-h-48 object-cover rounded-lg border border-slate-700 shadow-md">
+                  <div class="mt-2.5 flex items-center justify-between w-full text-xs text-slate-300">
+                    <span id="file-name" class="truncate max-w-[200px] font-mono text-[11px] text-slate-400"></span>
+                    <button type="button" onclick="clearSelectedFile(event)" class="text-rose-400 hover:text-rose-300 font-semibold text-[11px]">Remove</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Interactive Map Pinning -->
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                  Incident GPS Location <span class="text-rose-400">*</span>
+                </label>
+                <button type="button" onclick="locateUserGPS()" class="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded transition">
+                  <span>🎯</span> Locate Me
+                </button>
+              </div>
+
+              <!-- Leaflet Map Container (height ~280px) -->
+              <div id="map" class="h-[280px] w-full rounded-xl border border-slate-700 overflow-hidden shadow-inner z-0"></div>
+              <p class="text-[11px] text-slate-400 mt-1.5 flex items-center justify-between">
+                <span class="flex items-center gap-1">📍 Drag the pin or click on the map to set exact coordinates.</span>
+                <span id="exif-gps-badge" class="hidden text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span>📸</span> EXIF GPS Applied
+                </span>
+              </p>
+
+              <!-- Coordinate Read-only Fields -->
+              <div class="grid grid-cols-2 gap-3 mt-3">
+                <div>
+                  <label class="block text-[10px] uppercase font-mono text-slate-400 mb-1">Latitude</label>
+                  <input type="text" id="lat-input" readonly value="30.750000" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-emerald-400 font-semibold focus:outline-none">
+                </div>
+                <div>
+                  <label class="block text-[10px] uppercase font-mono text-slate-400 mb-1">Longitude</label>
+                  <input type="text" id="lon-input" readonly value="76.770000" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-emerald-400 font-semibold focus:outline-none">
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Timestamp Input -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                Reported Timestamp
+              </label>
+              <div class="relative">
+                <input type="text" id="timestamp-input" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500">
+                <button type="button" onclick="refreshTimestamp()" title="Reset to current time" class="absolute right-2 top-2 text-slate-400 hover:text-emerald-400 text-xs">
+                  🔄
+                </button>
+              </div>
+            </div>
+
+            <!-- 4. Submit Button & Progress State -->
+            <div class="pt-2">
+              <button type="submit" id="submit-btn" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-sm shadow-lg shadow-emerald-600/30 active:scale-[0.99] transition-all flex items-center justify-center gap-2">
+                <span id="btn-icon">⚡</span>
+                <span id="btn-text">Analyze & Generate Official Complaint</span>
+              </button>
+
+              <!-- Dynamic Multi-Step Progress Tracker (Hidden during idle) -->
+              <div id="progress-container" class="hidden mt-4 p-4 rounded-xl bg-slate-900/95 border border-emerald-500/40 text-xs shadow-xl">
+                <div class="flex items-center gap-2.5 text-emerald-300 font-semibold mb-2.5">
+                  <svg class="animate-spin h-4 w-4 text-emerald-400 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span id="progress-step-text" class="tracking-wide">Sanitizing PII → Running Vision Inspection → Resolving Ward Officer</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700/50">
+                  <div id="progress-bar" class="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 h-2 rounded-full transition-all duration-700 w-1/3 animate-pulse"></div>
+                </div>
+                <div class="flex justify-between items-center mt-2 text-[10px] text-slate-400 font-mono">
+                  <span id="substep-1" class="text-emerald-400 font-semibold">1. Sanitizing PII</span>
+                  <span id="substep-2" class="text-slate-500">2. Vision Inspection</span>
+                  <span id="substep-3" class="text-slate-500">3. Resolving Ward Officer</span>
+                </div>
+              </div>
+            </div>
+
+          </form>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN: Dynamic Results Section (7 cols) -->
+      <section class="lg:col-span-7 flex flex-col gap-6">
+
+        <!-- Default Placeholder Card (Before submission) -->
+        <div id="empty-state" class="bg-slate-800/40 border border-slate-700/40 rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[480px]">
+          <div class="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-3xl mb-4">
+            🏛️
+          </div>
+          <h3 class="text-lg font-bold text-slate-200">Municipal Decision Engine Ready</h3>
+          <p class="text-sm text-slate-400 max-w-md mt-1.5">
+            Upload an image of suspected civic waste or illegal dumping. The autonomous pipeline will redact private faces/plates, inspect waste severity via VLM, and compile an official dispatch letter.
+          </p>
+          <div class="mt-6 flex flex-wrap gap-2 justify-center text-xs text-slate-400">
+            <span class="px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700">1. OpenCV Haar Redaction</span>
+            <span class="px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700">2. Multi-Provider Vision LLM</span>
+            <span class="px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700">3. Shapely Ward Geo-Routing</span>
+          </div>
+        </div>
+
+        <!-- Negative Detection Banner & Card (Revealed if garbage_detected == false) -->
+        <div id="negative-result" class="hidden fade-enter bg-slate-800/70 border border-emerald-500/40 rounded-2xl p-6 shadow-2xl">
+          <div class="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-200 flex items-start gap-3">
+            <div class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg shrink-0">
+              ✓
+            </div>
+            <div>
+              <h4 class="font-bold text-base text-emerald-300">No significant civic waste detected at this location.</h4>
+              <p class="text-xs text-emerald-200/80 mt-1">
+                The Vision-Language model analyzed this scene and confirmed no illegal dumping, refuse piles, or uncollected garbage.
+              </p>
+            </div>
+          </div>
+
+          <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Sanitized Image Preview</p>
+              <img id="negative-preview-img" src="" alt="Sanitized Preview" class="w-full h-48 object-cover rounded-xl border border-slate-700 bg-slate-900">
+              <p class="text-xs text-emerald-400 font-medium mt-2 flex items-center gap-1.5">
+                <span>🛡️</span> No complaint drafted.
+              </p>
+            </div>
+            <div class="flex flex-col justify-center gap-3 p-4 bg-slate-900/60 rounded-xl border border-slate-700/60 text-xs">
+              <div>
+                <span class="text-slate-400 font-mono text-[10px] uppercase block">Inspection Status</span>
+                <span class="text-emerald-400 font-bold text-sm">Clean Area Confirmed</span>
+              </div>
+              <div>
+                <span class="text-slate-400 font-mono text-[10px] uppercase block">Municipal Action</span>
+                <span class="text-slate-300">No complaint drafted.</span>
+              </div>
+              <div id="negative-pii-badge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-slate-800 text-slate-300 border border-slate-700">
+                🛡️ PII Check Complete
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Positive Detection Result Card (Revealed if garbage_detected == true) -->
+        <div id="positive-result" class="hidden fade-enter flex flex-col gap-6">
+
+          <!-- Header Status & Alert -->
+          <div class="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-6 shadow-xl">
+            <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-700/60 mb-5">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="w-3 h-3 rounded-full bg-rose-500 animate-ping"></span>
+                  <h3 class="text-base font-bold text-white">Civic Waste Violation Confirmed</h3>
+                </div>
+                <p class="text-xs text-slate-400 mt-0.5">Municipal dispatch package compiled and ready for one-click forwarding.</p>
+              </div>
+
+              <!-- PII Redaction Badge -->
+              <span id="pii-status-badge" class="px-3 py-1 rounded-full text-xs font-semibold border flex items-center gap-1.5">
+                <!-- Dynamically populated -->
+              </span>
+            </div>
+
+            <!-- Image & Metadata Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
+
+              <!-- Sanitized Blurred Image Preview (5 cols) -->
+              <div class="md:col-span-5 flex flex-col gap-2">
+                <span class="text-[11px] font-mono uppercase tracking-wider text-slate-400">Sanitized Report Photo</span>
+                <div class="relative group rounded-xl overflow-hidden border border-slate-700 shadow-md">
+                  <img id="sanitized-img" src="" alt="Sanitized Photo" class="w-full h-56 object-cover bg-slate-900">
+                  <div class="absolute bottom-2 left-2 bg-slate-950/80 backdrop-blur px-2 py-0.5 rounded text-[10px] font-mono text-emerald-400 border border-emerald-500/20">
+                    51x51 Gaussian Redaction
+                  </div>
+                </div>
+              </div>
+
+              <!-- Detailed Metadata Cards (7 cols) -->
+              <div class="md:col-span-7 grid grid-cols-2 gap-3.5 text-xs">
+
+                <!-- Severity Card -->
+                <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-700/60 flex flex-col justify-between">
+                  <span class="text-[10px] font-mono uppercase text-slate-400">Waste Severity</span>
+                  <div class="mt-1">
+                    <span id="severity-badge" class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider">
+                      <!-- Populated -->
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Confidence Card -->
+                <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-700/60 flex flex-col justify-between">
+                  <span class="text-[10px] font-mono uppercase text-slate-400">VLM Confidence</span>
+                  <div class="mt-1 text-sm font-bold font-mono text-emerald-400" id="confidence-val">
+                    --
+                  </div>
+                </div>
+
+                <!-- Jurisdiction Card -->
+                <div class="col-span-2 p-3.5 rounded-xl bg-slate-900/60 border border-slate-700/60">
+                  <span class="text-[10px] font-mono uppercase text-slate-400">Designated Jurisdiction</span>
+                  <h4 class="font-bold text-slate-200 mt-1" id="jurisdiction-name">--</h4>
+                  <p class="text-[11px] text-emerald-400 font-semibold mt-0.5" id="ward-name">--</p>
+                </div>
+
+                <!-- Identified Categories Card -->
+                <div class="col-span-2 p-3.5 rounded-xl bg-slate-900/60 border border-slate-700/60">
+                  <span class="text-[10px] font-mono uppercase text-slate-400 mb-1.5 block">Identified Waste Streams</span>
+                  <div id="waste-tags" class="flex flex-wrap gap-1.5">
+                    <!-- Populated pills -->
+                  </div>
+                </div>
+
+                <!-- Officer in Charge Card -->
+                <div class="col-span-2 p-3.5 rounded-xl bg-slate-900/60 border border-slate-700/60 flex flex-col gap-1">
+                  <span class="text-[10px] font-mono uppercase text-slate-400">Assigned Sanitary Officers</span>
+                  <div class="flex items-center justify-between text-[11px] text-slate-300">
+                    <span>Sanitary Inspector:</span>
+                    <span class="font-mono text-emerald-400 font-semibold" id="officer-email">--</span>
+                  </div>
+                  <div class="flex items-center justify-between text-[11px] text-slate-300">
+                    <span>WhatsApp Helpline:</span>
+                    <span class="font-mono text-teal-400 font-semibold" id="officer-whatsapp">--</span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Reverse Geocoded Address Bar -->
+            <div class="mt-4 p-3 rounded-xl bg-slate-900/80 border border-slate-700 text-xs flex items-center gap-2">
+              <span class="text-sm">📍</span>
+              <span class="text-slate-400">Street Address:</span>
+              <span class="font-medium text-slate-200 truncate flex-1" id="resolved-address-text">--</span>
+            </div>
+
+            <!-- Short-Lived Evidence Link -->
+            <div class="mt-3 p-3 rounded-xl bg-slate-900/80 border border-slate-700 text-xs flex flex-wrap items-center gap-2">
+              <span class="text-sm">🖼️</span>
+              <span class="text-slate-400">Evidence link:</span>
+              <a id="evidence-link" href="#" target="_blank" rel="noopener noreferrer" class="font-mono text-[11px] text-emerald-400 hover:text-emerald-300 underline truncate max-w-[280px]">--</a>
+              <span id="evidence-expiry" class="text-[10px] text-slate-500"></span>
+              <button type="button" onclick="copyEvidenceLink(event)" class="ml-auto text-[11px] font-semibold px-2 py-1 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-200 transition">
+                Copy link
+              </button>
+            </div>
+          </div>
+
+          <!-- Official Complaint Letter Card (Editable) -->
+          <div class="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-6 shadow-xl flex flex-col gap-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                  <span>📝</span> Compiled Municipal Grievance Letter
+                </h3>
+                <p class="text-xs text-slate-400">Editable before dispatch. Includes GPS coordinates, a map link, and short-lived photo evidence.</p>
+              </div>
+
+              <!-- Copy to Clipboard Button -->
+              <div class="relative">
+                <button type="button" onclick="copyComplaintText()" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center gap-1.5 transition">
+                  <span id="copy-btn-icon">📋</span>
+                  <span id="copy-btn-text">Copy Complaint</span>
+                </button>
+                <div id="copy-tooltip" class="hidden absolute right-0 -top-8 px-2 py-1 rounded bg-emerald-500 text-slate-950 text-[10px] font-bold shadow-lg whitespace-nowrap">
+                  ✓ Copied!
+                </div>
+              </div>
+            </div>
+
+            <textarea id="complaint-textarea" rows="12" class="w-full bg-slate-900/90 border border-slate-700 rounded-xl p-4 text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500 leading-relaxed resize-y"></textarea>
+
+            <!-- Handoff & Dispatch Action Buttons -->
+            <div class="pt-2">
+              <span class="text-[11px] font-mono uppercase tracking-wider text-slate-400 block mb-2.5">Instant Municipal Dispatch Channels:</span>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                <!-- 1. Open in Gmail (Google Red #EA4335) -->
+                <button type="button" id="btn-gmail" onclick="dispatchGmail()" class="py-3 px-4 rounded-xl bg-[#EA4335] hover:bg-[#d9382b] text-white font-semibold text-xs shadow-lg shadow-red-500/20 active:scale-[0.98] transition flex items-center justify-center gap-2">
+                  <span>✉️</span> Open in Gmail
+                </button>
+
+                <!-- 2. Send via WhatsApp (WhatsApp Green #25D366) -->
+                <button type="button" id="btn-whatsapp" onclick="dispatchWhatsApp()" class="py-3 px-4 rounded-xl bg-[#25D366] hover:bg-[#20be5b] text-white font-semibold text-xs shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition flex items-center justify-center gap-2">
+                  <span>💬</span> Send via WhatsApp
+                </button>
+
+                <!-- 3. Default Mail Client -->
+                <button type="button" id="btn-mailto" onclick="dispatchMailto()" class="py-3 px-4 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-100 font-semibold text-xs shadow-lg active:scale-[0.98] transition flex items-center justify-center gap-2">
+                  <span>📬</span> Default Mail Client
+                </button>
+
+                <!-- 4. Server-side email with the sanitized photo attached -->
+                <button type="button" id="btn-server-email" onclick="dispatchServerEmail()" class="py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                  <span>📎</span> Email + Attach Photo
+                </button>
+
+              </div>
+
+              <!-- Server-side delivery status -->
+              <p id="email-status" class="hidden mt-3 p-2.5 rounded-lg text-[11px] border"></p>
+              <p class="text-[10px] text-slate-500 mt-2">
+                “Email + Attach Photo” sends the letter and the PII-blurred JPEG from the server; it requires SMTP to be configured.
+              </p>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- JavaScript Logic -->
+  <script>
+    // Configuration & State
+    const API_BASE = (window.location.origin && window.location.origin.startsWith('http'))
+      ? window.location.origin
+      : 'http://127.0.0.1:8000';
+    const API_ENDPOINT = `${API_BASE}/api/report`;
+    let selectedFile = null;
+    let leafletMap = null;
+    let marker = null;
+    let currentResponseData = null;
+
+    // Initialize Map and Defaults on DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', () => {
+      initMap();
+      refreshTimestamp();
+    });
+
+    // 1. Leaflet Map Initialization
+    function initMap() {
+      const defaultLat = 30.7500;
+      const defaultLon = 76.7700;
+
+      leafletMap = L.map('map', {
+        center: [defaultLat, defaultLon],
+        zoom: 13,
+        zoomControl: true,
+      });
+
+      // Official Free OpenStreetMap tile server (no API key required)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
+      }).addTo(leafletMap);
+
+      // Custom marker icon
+      const customIcon = L.icon({
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+      });
+
+      marker = L.marker([defaultLat, defaultLon], {
+        draggable: true,
+        icon: customIcon
+      }).addTo(leafletMap);
+
+      // Sync coordinates on marker drag in real-time
+      marker.on('drag', function (e) {
+        const position = marker.getLatLng();
+        updateCoordinatesUI(position.lat, position.lng);
+      });
+
+      marker.on('dragend', function (e) {
+        const position = marker.getLatLng();
+        updateCoordinatesUI(position.lat, position.lng);
+      });
+
+      // Move marker and update inputs on map click
+      leafletMap.on('click', function (e) {
+        marker.setLatLng(e.latlng);
+        updateCoordinatesUI(e.latlng.lat, e.latlng.lng);
+      });
+
+      updateCoordinatesUI(defaultLat, defaultLon);
+
+      // Invalidate size to guarantee smooth tile rendering
+      setTimeout(() => {
+        if (leafletMap) leafletMap.invalidateSize();
+      }, 300);
+    }
+
+    function updateCoordinatesUI(lat, lon) {
+      document.getElementById('lat-input').value = Number(lat).toFixed(6);
+      document.getElementById('lon-input').value = Number(lon).toFixed(6);
+    }
+
+    // Fallback to IP Geolocation via ipapi.co when GPS fails or times out
+    async function fallbackToIpGeolocation() {
+      try {
+        console.log("🌐 Attempting IP-based geolocation fallback via ipapi.co...");
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+        const response = await fetch('https://ipapi.co/json/', {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          const ipLat = parseFloat(data.latitude);
+          const ipLon = parseFloat(data.longitude);
+
+          if (!isNaN(ipLat) && !isNaN(ipLon)) {
+            console.log(`🌐 IP Geolocation centered: ${data.city || 'City'}, ${data.country_name || ''} [${ipLat}, ${ipLon}]`);
+            if (marker && leafletMap) {
+              marker.setLatLng([ipLat, ipLon]);
+              leafletMap.setView([ipLat, ipLon], 12);
+              updateCoordinatesUI(ipLat, ipLon);
+            }
+            return;
+          }
+        }
+      } catch (ipErr) {
+        console.warn("IP Geolocation fallback unfulfilled (" + ipErr.message + "). Defaulting to map pin location.");
+      }
+
+      // Default gracefully to marker's current coordinates
+      if (marker) {
+        const currentPos = marker.getLatLng();
+        updateCoordinatesUI(currentPos.lat, currentPos.lng);
+      }
+    }
+
+    // Locate User GPS with ipapi.co fallback
+    function locateUserGPS() {
+      if (!navigator.geolocation) {
+        console.warn("Geolocation services not supported. Falling back to IP-based location.");
+        fallbackToIpGeolocation();
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          if (marker && leafletMap) {
+            marker.setLatLng([lat, lon]);
+            leafletMap.setView([lat, lon], 15);
+            updateCoordinatesUI(lat, lon);
+          }
+        },
+        (err) => {
+          // If navigator.geolocation fails or times out, fallback to ipapi.co to center map on user's city
+          console.warn("GPS position acquisition failed (" + err.message + "). Falling back to IP-based location.");
+          fallbackToIpGeolocation();
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 15000,
+          maximumAge: 60000
+        }
+      );
+    }
+
+    // EXIF GPS Extraction Helper
+    function parseExifCoordPart(coord) {
+      if (typeof coord === 'number') return coord;
+      if (coord && typeof coord === 'object') {
+        if ('numerator' in coord && 'denominator' in coord) {
+          return coord.denominator ? coord.numerator / coord.denominator : 0;
+        }
+        if (typeof coord.valueOf === 'function') {
+          const val = coord.valueOf();
+          if (typeof val === 'number') return val;
+        }
+      }
+      return parseFloat(coord) || 0;
+    }
+
+    function convertDMSToDD(dms, ref) {
+      if (!Array.isArray(dms) || dms.length < 3) return null;
+      const deg = parseExifCoordPart(dms[0]);
+      const min = parseExifCoordPart(dms[1]);
+      const sec = parseExifCoordPart(dms[2]);
+      let dd = deg + (min / 60) + (sec / 3600);
+      const direction = String(ref || '').trim().toUpperCase();
+      if (direction === 'S' || direction === 'W') {
+        dd = -dd;
+      }
+      return dd;
+    }
+
+    function extractGpsFromImage(file) {
+      if (typeof EXIF === 'undefined' || !file) return;
+
+      try {
+        EXIF.getData(file, function () {
+          const latData = EXIF.getTag(this, "GPSLatitude");
+          const latRef = EXIF.getTag(this, "GPSLatitudeRef") || "N";
+          const lonData = EXIF.getTag(this, "GPSLongitude");
+          const lonRef = EXIF.getTag(this, "GPSLongitudeRef") || "E";
+
+          if (latData && lonData) {
+            const lat = convertDMSToDD(latData, latRef);
+            const lon = convertDMSToDD(lonData, lonRef);
+
+            if (lat !== null && lon !== null && !isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+              console.log(`📸 EXIF GPS found in image: ${lat.toFixed(6)}, ${lon.toFixed(6)}`);
+              if (marker && leafletMap) {
+                marker.setLatLng([lat, lon]);
+                leafletMap.setView([lat, lon], 15);
+                updateCoordinatesUI(lat, lon);
+              }
+              const badge = document.getElementById('exif-gps-badge');
+              if (badge) {
+                badge.classList.remove('hidden');
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.warn("Could not inspect image EXIF GPS:", err);
+      }
+    }
+
+    // Refresh Timestamp
+    function refreshTimestamp() {
+      const now = new Date();
+      document.getElementById('timestamp-input').value = now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+    }
+
+    // 2. File Drag and Drop Handlers
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      document.getElementById('dropzone').classList.add('border-emerald-400', 'bg-slate-800/80');
+    }
+
+    function handleDragLeave(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      document.getElementById('dropzone').classList.remove('border-emerald-400', 'bg-slate-800/80');
+    }
+
+    function handleDrop(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      document.getElementById('dropzone').classList.remove('border-emerald-400', 'bg-slate-800/80');
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        processSelectedFile(files[0]);
+      }
+    }
+
+    function handleFileSelect(e) {
+      const files = e.target.files;
+      if (files && files.length > 0) {
+        processSelectedFile(files[0]);
+      }
+    }
+
+    function processSelectedFile(file) {
+      if (!file.type.startsWith('image/')) {
+        showError("Invalid File", "Please select a valid image file (JPEG, PNG, WebP).");
+        return;
+      }
+
+      selectedFile = file;
+      document.getElementById('file-name').innerText = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById('image-preview').src = e.target.result;
+        document.getElementById('upload-prompt').classList.add('hidden');
+        document.getElementById('image-preview-wrapper').classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+
+      // Attempt client-side EXIF GPS extraction
+      extractGpsFromImage(file);
+    }
+
+    function clearSelectedFile(e) {
+      if (e) e.stopPropagation();
+      selectedFile = null;
+      document.getElementById('file-input').value = '';
+      document.getElementById('image-preview').src = '';
+      document.getElementById('image-preview-wrapper').classList.add('hidden');
+      document.getElementById('upload-prompt').classList.remove('hidden');
+      const badge = document.getElementById('exif-gps-badge');
+      if (badge) badge.classList.add('hidden');
+    }
+
+    // 3. Form Submission & API Request Pipeline
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+      dismissError();
+      hideEmailStatus();
+
+      if (!selectedFile) {
+        showError("File Required", "Please select or drop an image file of the waste site before submitting.");
+        return;
+      }
+
+      const lat = document.getElementById('lat-input').value;
+      const lon = document.getElementById('lon-input').value;
+      const capturedAt = document.getElementById('timestamp-input').value;
+
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('lat', lat);
+      formData.append('lon', lon);
+      formData.append('captured_at', capturedAt);
+
+      // UI Loading States
+      setLoadingState(true);
+
+      try {
+        const response = await fetch(API_ENDPOINT, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.detail || `Server returned HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        currentResponseData = data;
+        renderResults(data);
+
+      } catch (err) {
+        console.error("Submission failed:", err);
+        showError(
+          "Connection Failed",
+          `Unable to complete civic report (${err.message}). Ensure backend server is active at ${API_ENDPOINT}.`
+        );
+      } finally {
+        setLoadingState(false);
+      }
+    }
+
+    function setLoadingState(isLoading) {
+      const submitBtn = document.getElementById('submit-btn');
+      const progressContainer = document.getElementById('progress-container');
+      const stepText = document.getElementById('progress-step-text');
+      const progressBar = document.getElementById('progress-bar');
+      const s1 = document.getElementById('substep-1');
+      const s2 = document.getElementById('substep-2');
+      const s3 = document.getElementById('substep-3');
+
+      if (isLoading) {
+        submitBtn.disabled = true;
+        submitBtn.classList.add('opacity-60', 'cursor-not-allowed');
+        document.getElementById('btn-icon').innerText = '⏳';
+        document.getElementById('btn-text').innerText = 'Analyzing Civic Report...';
+        progressContainer.classList.remove('hidden');
+
+        // Display required animated progress state
+        stepText.innerText = 'Sanitizing PII → Running Vision Inspection → Resolving Ward Officer';
+        progressBar.style.width = '30%';
+        if (s1) s1.className = 'text-emerald-400 font-bold';
+        if (s2) s2.className = 'text-slate-500';
+        if (s3) s3.className = 'text-slate-500';
+
+        setTimeout(() => {
+          if (submitBtn.disabled) {
+            progressBar.style.width = '65%';
+            if (s1) s1.className = 'text-slate-400';
+            if (s2) s2.className = 'text-teal-400 font-bold';
+          }
+        }, 1200);
+
+        setTimeout(() => {
+          if (submitBtn.disabled) {
+            progressBar.style.width = '90%';
+            if (s2) s2.className = 'text-slate-400';
+            if (s3) s3.className = 'text-cyan-400 font-bold';
+          }
+        }, 2500);
+
+      } else {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+        document.getElementById('btn-icon').innerText = '⚡';
+        document.getElementById('btn-text').innerText = 'Analyze & Generate Official Complaint';
+        progressContainer.classList.add('hidden');
+        progressBar.style.width = '100%';
+      }
+    }
+
+    // 4. Render Response Results
+    function renderResults(data) {
+      document.getElementById('empty-state').classList.add('hidden');
+      const negativeCard = document.getElementById('negative-result');
+      const positiveCard = document.getElementById('positive-result');
+
+      // Negative Case: Zero waste detected
+      if (data.garbage_detected === false) {
+        positiveCard.classList.add('hidden');
+        positiveCard.classList.remove('fade-enter-active');
+        negativeCard.classList.remove('hidden');
+        requestAnimationFrame(() => {
+          negativeCard.classList.add('fade-enter-active');
+        });
+
+        if (data.sanitized_image_b64) {
+          document.getElementById('negative-preview-img').src = 'data:image/jpeg;base64,' + data.sanitized_image_b64;
+        }
+
+        const piiBadge = document.getElementById('negative-pii-badge');
+        if (data.pii_blurred) {
+          piiBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-amber-500/10 text-amber-300 border border-amber-500/30';
+          piiBadge.innerText = '🛡️ PII Blurred: true';
+        } else {
+          piiBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/30';
+          piiBadge.innerText = '✓ PII Blurred: false';
+        }
+
+        negativeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
+
+      // Positive Case: Waste confirmed & complaint compiled
+      negativeCard.classList.add('hidden');
+      negativeCard.classList.remove('fade-enter-active');
+      positiveCard.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        positiveCard.classList.add('fade-enter-active');
+      });
+
+      // 1. Sanitized image
+      if (data.sanitized_image_b64) {
+        document.getElementById('sanitized-img').src = 'data:image/jpeg;base64,' + data.sanitized_image_b64;
+      }
+
+      // 2. PII Status Badge
+      const piiBadge = document.getElementById('pii-status-badge');
+      if (data.pii_blurred) {
+        piiBadge.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30 flex items-center gap-1.5';
+        piiBadge.innerHTML = '🛡️ PII Blurred: true (Faces/Plates Redacted)';
+      } else {
+        piiBadge.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5';
+        piiBadge.innerHTML = '✓ PII Blurred: false (Zero PII Detected)';
+      }
+
+      // 3. VLM details
+      const vlm = data.vlm_result || {};
+      const severity = String(vlm.severity || 'medium').toLowerCase();
+      const sevBadge = document.getElementById('severity-badge');
+
+      if (severity === 'high') {
+        sevBadge.className = 'inline-block px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30';
+        sevBadge.innerText = 'High Severity';
+      } else if (severity === 'medium') {
+        sevBadge.className = 'inline-block px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30';
+        sevBadge.innerText = 'Medium Severity';
+      } else {
+        sevBadge.className = 'inline-block px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+        sevBadge.innerText = 'Low Severity';
+      }
+
+      document.getElementById('confidence-val').innerText = (Number(vlm.confidence || 0.95) * 100).toFixed(0) + '%';
+
+      // Waste stream tags
+      const wasteContainer = document.getElementById('waste-tags');
+      wasteContainer.innerHTML = '';
+      const rawTypes = vlm.waste_types || ['Domestic Waste'];
+      const types = Array.isArray(rawTypes) ? rawTypes : [String(rawTypes)];
+      types.forEach(t => {
+        const span = document.createElement('span');
+        span.className = 'px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-medium';
+        span.innerText = t;
+        wasteContainer.appendChild(span);
+      });
+
+      // 4. Authority Details
+      const auth = data.authority || {};
+      document.getElementById('jurisdiction-name').innerText = auth.municipality_name || 'Municipal Corporation';
+      document.getElementById('ward-name').innerText = `Ward ${auth.ward_number || 'N/A'}: ${auth.ward_name || 'Local Area'}`;
+      document.getElementById('officer-email').innerText = auth.sanitary_inspector_email || 'sanitation@municipal.gov.in';
+      document.getElementById('officer-whatsapp').innerText = auth.whatsapp_helpline || '+91-9220592205';
+
+      const streetAddr = auth.formatted_address || auth.resolved_address || `${auth.latitude}, ${auth.longitude}`;
+      document.getElementById('resolved-address-text').innerText = streetAddr;
+
+      // 5. Complaint Draft Textarea
+      const draft = data.draft || {};
+      document.getElementById('complaint-textarea').value = draft.body || '';
+
+      // 6. Short-Lived Evidence Link
+      const evidenceLink = document.getElementById('evidence-link');
+      const evidenceExpiry = document.getElementById('evidence-expiry');
+      const evidenceUrl = draft.evidence_url || '';
+      if (evidenceUrl && /^https?:\/\//i.test(evidenceUrl)) {
+        evidenceLink.href = evidenceUrl;
+        evidenceLink.textContent = evidenceUrl;
+        evidenceLink.title = evidenceUrl;
+      } else {
+        evidenceLink.href = '#';
+        evidenceLink.textContent = 'Unavailable';
+      }
+      if (draft.evidence_expires_at) {
+        const expires = new Date(draft.evidence_expires_at);
+        evidenceExpiry.textContent = isNaN(expires.getTime())
+          ? ''
+          : `valid until ${expires.toLocaleString()}`;
+      } else {
+        evidenceExpiry.textContent = '';
+      }
+
+      hideEmailStatus();
+
+      // Smooth scroll into results
+      positiveCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // 5. Dispatch Action Handlers
+    function dispatchGmail() {
+      if (!currentResponseData || !currentResponseData.draft) return;
+      const textareaVal = document.getElementById('complaint-textarea').value;
+      let url = currentResponseData.draft.gmail_web_url;
+      if (textareaVal && currentResponseData.draft) {
+        const to = encodeURIComponent(currentResponseData.draft.to || '');
+        const cc = encodeURIComponent((currentResponseData.draft.cc || []).join(','));
+        const su = encodeURIComponent(currentResponseData.draft.subject || '');
+        const body = encodeURIComponent(textareaVal);
+        url = `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&cc=${cc}&su=${su}&body=${body}`;
+      }
+      if (url) window.open(url, '_blank');
+    }
+
+    function dispatchWhatsApp() {
+      if (!currentResponseData || !currentResponseData.draft) return;
+      const textareaVal = document.getElementById('complaint-textarea').value;
+      let url = currentResponseData.draft.whatsapp_url;
+      const phone = (currentResponseData.authority && currentResponseData.authority.whatsapp_helpline) || '919220592205';
+      const cleanPhone = phone.replace(/\D/g, '');
+      if (textareaVal) {
+        const evidence = currentResponseData.draft.evidence_url;
+        const summary = `*CIVIC GRIEVANCE NOTICE*\n${textareaVal.substring(0, 600)}...`
+          + (evidence ? `\n\nPhoto evidence: ${evidence}` : '')
+          + `\n\n_Full details submitted to Municipal Portal._`;
+        url = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(summary)}`;
+      }
+      if (url) window.open(url, '_blank');
+    }
+
+    function dispatchMailto() {
+      if (!currentResponseData || !currentResponseData.draft) return;
+      const textareaVal = document.getElementById('complaint-textarea').value;
+      let url = currentResponseData.draft.mailto_url;
+      if (textareaVal && currentResponseData.draft) {
+        const to = encodeURIComponent(currentResponseData.draft.to || '');
+        const cc = encodeURIComponent((currentResponseData.draft.cc || []).join(','));
+        const su = encodeURIComponent(currentResponseData.draft.subject || '');
+        const body = encodeURIComponent(textareaVal);
+        url = `mailto:${to}?cc=${cc}&subject=${su}&body=${body}`;
+      }
+      if (url) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.click();
+      }
+    }
+
+    // Server-side delivery: complaint text + sanitized JPEG attached by the backend.
+    async function dispatchServerEmail() {
+      if (!currentResponseData || !currentResponseData.report_id || !currentResponseData.draft) {
+        showEmailStatus('No retained report is available to email. Submit the report again.', false);
+        return;
+      }
+
+      const btn = document.getElementById('btn-server-email');
+      const textareaVal = document.getElementById('complaint-textarea').value;
+      btn.disabled = true;
+      showEmailStatus('Sending complaint and sanitized photo…', true, true);
+
+      try {
+        const response = await fetch(`${API_BASE}/api/reports/${encodeURIComponent(currentResponseData.report_id)}/email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            body: textareaVal,
+            subject: currentResponseData.draft.subject || ''
+          })
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload.detail || `Server returned HTTP ${response.status}`);
+        }
+
+        const count = payload.send_count ? ` (send ${payload.send_count})` : '';
+        showEmailStatus(`✓ ${payload.message || 'Complaint emailed with photo attached.'}${count}`, true);
+      } catch (err) {
+        console.error('Server-side email failed:', err);
+        const detail = String(err.message || err);
+        showEmailStatus(`Email not sent: ${detail.substring(0, 320)}`, false);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function showEmailStatus(message, ok, pending = false) {
+      const el = document.getElementById('email-status');
+      el.textContent = message;
+      el.className = pending
+        ? 'mt-3 p-2.5 rounded-lg text-[11px] border bg-slate-800/80 text-slate-300 border-slate-600'
+        : ok
+          ? 'mt-3 p-2.5 rounded-lg text-[11px] border bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+          : 'mt-3 p-2.5 rounded-lg text-[11px] border bg-rose-500/10 text-rose-300 border-rose-500/30';
+    }
+
+    function hideEmailStatus() {
+      const el = document.getElementById('email-status');
+      if (!el) return;
+      el.textContent = '';
+      el.className = 'hidden mt-3 p-2.5 rounded-lg text-[11px] border';
+    }
+
+    function copyEvidenceLink(e) {
+      const url = currentResponseData && currentResponseData.draft ? currentResponseData.draft.evidence_url : '';
+      if (!url) return;
+      navigator.clipboard.writeText(url).then(() => {
+        const btn = e && e.target ? e.target.closest('button') : null;
+        if (!btn) return;
+        const original = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = original; }, 1500);
+      }).catch(err => {
+        console.error('Could not copy evidence link:', err);
+      });
+    }
+
+    // Copy Complaint to Clipboard
+    function copyComplaintText() {
+      const textarea = document.getElementById('complaint-textarea');
+      textarea.select();
+      navigator.clipboard.writeText(textarea.value).then(() => {
+        const tooltip = document.getElementById('copy-tooltip');
+        tooltip.classList.remove('hidden');
+        document.getElementById('copy-btn-text').innerText = 'Copied!';
+        setTimeout(() => {
+          tooltip.classList.add('hidden');
+          document.getElementById('copy-btn-text').innerText = 'Copy Complaint';
+        }, 2000);
+      }).catch(err => {
+        console.error("Copy failed", err);
+      });
+    }
+
+    // Error Banner Helpers
+    function showError(title, msg) {
+      document.getElementById('error-title').innerText = title;
+      document.getElementById('error-message').innerText = msg;
+      document.getElementById('error-banner').classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function dismissError() {
+      document.getElementById('error-banner').classList.add('hidden');
+    }
+  </script>
+
+</body>
+</html>
