@@ -53,7 +53,7 @@ class TestAuthorityRouter(unittest.TestCase):
             "sanitary_inspector_email",
             "moh_email",
             "commissioner_email",
-            "whatsapp_helpline",
+            "helpline",
         }
 
         for feature in features:
@@ -77,7 +77,7 @@ class TestAuthorityRouter(unittest.TestCase):
                 self.assertEqual(result["ward_number"], "12")
                 self.assertEqual(result["ward_name"], "Sector 15 & 16")
                 self.assertEqual(result["sanitary_inspector_email"], "sanitation.ward12@chd.nic.in")
-                self.assertEqual(result["whatsapp_helpline"], "919220592205")
+                self.assertEqual(result["helpline"], "919220592205")
                 self.assertEqual(result["resolved_address"], "Sector 15, Chandigarh, India")
                 self.assertEqual(result["latitude"], lat)
                 self.assertEqual(result["longitude"], lon)
@@ -115,7 +115,7 @@ class TestAuthorityRouter(unittest.TestCase):
                 self.assertEqual(result["ward_name"], "Central Grievance Zone")
                 self.assertEqual(result["sanitary_inspector_email"], "grievance.central@chd.nic.in")
                 self.assertEqual(result["moh_email"], "")
-                self.assertEqual(result["whatsapp_helpline"], "")
+                self.assertEqual(result["helpline"], "")
                 self.assertEqual(result["resolved_address"], "Gulf of Guinea")
 
         asyncio.run(_run())

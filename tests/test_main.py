@@ -94,7 +94,7 @@ class TestMainAPI(unittest.TestCase):
             "sanitary_inspector_email": "sanitation.ward12@chd.nic.in",
             "moh_email": "moh-mcc@chd.nic.in",
             "commissioner_email": "commissioner-mcc@chd.nic.in",
-            "whatsapp_helpline": "919220592205",
+            "helpline": "919220592205",
             "ward_matched": True,
             "latitude": 30.7520,
             "longitude": 76.7750,
@@ -129,10 +129,8 @@ class TestMainAPI(unittest.TestCase):
         self.assertIn("Massive pile of uncollected garbage", draft["body"])
         self.assertIn("https://www.google.com/maps?q=30.752,76.775", draft["body"])
 
-        # Legacy URL-based dispatch fields must no longer be emitted.
-        self.assertNotIn("mailto_url", draft)
-        self.assertNotIn("gmail_web_url", draft)
-        self.assertNotIn("whatsapp_url", draft)
+        # Verify draft contains only clean, structured fields.
+        self.assertEqual(set(draft.keys()), {"to", "cc", "subject", "body", "evidence_url", "evidence_expires_at"})
 
     @patch("backend.main.analyze_with_vlm")
     @patch("backend.main.blur_pii_in_image")

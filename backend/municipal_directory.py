@@ -143,7 +143,6 @@ class MunicipalDirectory:
             "sanitary_inspector_email": contact.primary_email,
             "moh_email": "",
             "commissioner_email": "",
-            "whatsapp_helpline": "",
             "website": contact.website,
             "helpline": contact.helpline,
             "ward_matched": False,

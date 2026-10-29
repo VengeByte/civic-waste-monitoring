@@ -100,9 +100,10 @@ class GoogleSession:
 @dataclass
 class PendingAuth:
     state: str
-    popup: bool
+    report_id: str
     redirect_uri: str
     created_at: float
+    popup: bool = False
 
 
 def _token_expiry(token_data: dict[str, Any]) -> float:
@@ -171,6 +172,8 @@ async def refresh_access_token(
             await http_client.aclose()
 
     if response.status_code != 200:
+        if "invalid_grant" in response.text:
+            raise GmailOAuthError("invalid_grant: Google revoked or expired the refresh token.")
         raise GmailOAuthError(
             f"Google token refresh failed (HTTP {response.status_code}): "
             f"{response.text[:300]}"
@@ -245,9 +248,44 @@ async def create_gmail_draft(
     return data
 
 
-def build_draft_url(email: str) -> str:
-    """Open the Gmail drafts view for the account that owns the draft."""
-    return f"https://mail.google.com/mail/?authuser={quote(email)}#drafts"
+async def ensure_active_session(
+    session: GoogleSession,
+    config: GoogleOAuthConfig,
+    client: Optional[httpx.AsyncClient] = None,
+) -> GoogleSession:
+    """
+    Ensure the access token is valid, refreshing automatically if close to expiration.
+    On invalid_grant or revoked token, evicts the session from store and raises GmailOAuthError.
+    """
+    if session.expires_at > time.time() + 60:
+        return session
+    if not session.refresh_token:
+        GMAIL_SESSIONS.delete(session.session_id)
+        raise GmailOAuthError("invalid_grant: No refresh token present.")
+    try:
+        refreshed = await refresh_access_token(config, session.refresh_token, client=client)
+        updated = GMAIL_SESSIONS.update_tokens(session.session_id, refreshed)
+        if updated is None:
+            raise GmailOAuthError("Session was deleted during token refresh.")
+        return updated
+    except GmailOAuthError:
+        GMAIL_SESSIONS.delete(session.session_id)
+        raise
+
+
+def build_draft_url(email: str, draft_id: str = "", message_id: str = "") -> str:
+    """
+    Return the Gmail deep link targeting the authorized account's draft.
+
+    Format:
+        https://mail.google.com/mail/u/?authuser=<urlencoded-email>#drafts?compose=<draftId>
+    """
+    compose_id = draft_id or message_id
+    encoded_email = quote(email, safe="")
+    if compose_id:
+        encoded_compose = quote(compose_id, safe="")
+        return f"https://mail.google.com/mail/u/?authuser={encoded_email}#drafts?compose={encoded_compose}"
+    return f"https://mail.google.com/mail/u/?authuser={encoded_email}#drafts"
 
 
 class GoogleSessionStore:
@@ -325,16 +363,25 @@ class OAuthStateStore:
         self._lock = threading.Lock()
         self._states: dict[str, PendingAuth] = {}
 
-    def create(self, popup: bool, redirect_uri: str) -> str:
+    def create(
+        self,
+        report_id: str = "",
+        redirect_uri: str = "",
+        popup: bool = False,
+    ) -> str:
+        if isinstance(report_id, bool):
+            popup = report_id
+            report_id = ""
         state = secrets.token_urlsafe(24)
         now = time.time()
         with self._lock:
             self._purge_locked(now)
             self._states[state] = PendingAuth(
                 state=state,
-                popup=popup,
+                report_id=report_id,
                 redirect_uri=redirect_uri,
                 created_at=now,
+                popup=popup,
             )
         return state
 

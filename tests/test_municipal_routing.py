@@ -103,7 +103,7 @@ def test_municipal_complaint_uses_commissioner_not_ward():
         "sanitary_inspector_email": "ccp@mcgm.gov.in",
         "moh_email": "",
         "commissioner_email": "",
-        "whatsapp_helpline": "",
+        "helpline": "",
         "website": "https://portal.mcgm.gov.in",
         "boundary_quality": "community",
         "match_type": "municipal_polygon",
@@ -130,7 +130,7 @@ def test_central_complaint_explains_fallback():
         "sanitary_inspector_email": "grievance.central@chd.nic.in",
         "moh_email": "",
         "commissioner_email": "",
-        "whatsapp_helpline": "",
+        "helpline": "",
         "match_type": "central_fallback",
         "formatted_address": "Surat",
     }
@@ -153,8 +153,7 @@ def test_mumbai_report_routes_to_bmc_email():
     assert authority["match_type"] == "municipal_polygon"
     assert authority["sanitary_inspector_email"] == "ccp@mcgm.gov.in"
     assert draft["to"] == "ccp@mcgm.gov.in"
-    assert "whatsapp_url" not in draft
-    assert "mailto_url" not in draft
+    assert set(draft.keys()) == {"to", "cc", "subject", "body", "evidence_url", "evidence_expires_at"}
     assert "Brihanmumbai" in draft["subject"]
     assert "Ward N/A" not in draft["subject"]
 

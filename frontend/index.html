@@ -473,6 +473,7 @@
       initMap();
       refreshTimestamp();
       refreshGmailStatus();
+      checkUrlAuthStatus();
     });
 
     // 1. Leaflet Map Initialization
@@ -667,10 +668,21 @@
       }
     }
 
-    // Refresh Timestamp
+    // Refresh Timestamp (Indian Standard Time - IST)
     function refreshTimestamp() {
       const now = new Date();
-      document.getElementById('timestamp-input').value = now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+      const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).formatToParts(now);
+      const get = t => parts.find(p => p.type === t)?.value || '00';
+      document.getElementById('timestamp-input').value = `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}:${get('second')} IST`;
     }
 
     // 2. File Drag and Drop Handlers
@@ -984,6 +996,24 @@
     }
 
     // 5. Gmail OAuth + draft creation. The JPEG is attached by the backend.
+    function checkUrlAuthStatus() {
+      const params = new URLSearchParams(window.location.search);
+      const err = params.get('error');
+      if (err) {
+        if (err === 'oauth_denied' || err === 'access_denied') {
+          showEmailStatus('Google OAuth access was denied or cancelled.', false);
+        } else if (err === 'report_expired') {
+          showEmailStatus('Report expired — please submit the photo again.', false);
+        } else if (err === 'draft_failed') {
+          showEmailStatus(`Gmail draft creation failed. ${params.get('detail') || 'Please try again.'}`, false);
+        } else if (err === 'unconfigured') {
+          showEmailStatus('Gmail integration is not configured on this server.', false);
+        } else {
+          showEmailStatus(`Google error: ${err}`, false);
+        }
+      }
+    }
+
     async function refreshGmailStatus() {
       try {
         const response = await fetch(`${API_BASE}/auth/google/status`, { credentials: 'same-origin' });
@@ -1002,44 +1032,11 @@
       const note = document.getElementById('gmail-account-note');
       if (!note) return;
       if (!gmailConfigured) {
-        note.innerText = 'Gmail integration is not configured on this server. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI.';
-      } else if (gmailConnected && gmailEmail) {
-        note.innerText = `Connected as ${gmailEmail}. Gmail opens with the complaint and photo already attached; choose the sender and press Send.`;
+        note.innerText = 'Gmail integration is not configured on this server. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI in .env.';
       } else {
-        note.innerText = 'Gmail will ask you to choose the sender account. The complaint and PII-blurred photo are already attached in the draft.';
+        note.innerText = 'Opens Google’s account chooser to pick the sender account. Gmail opens with the complaint and photo attached as a draft; you only review and press Send.';
       }
     }
-
-    function openGmailAuth() {
-      gmailAuthPending = true;
-      const popup = window.open(
-        `${API_BASE}/auth/google/start?popup=1`,
-        'gmailAuth',
-        'width=520,height=650'
-      );
-      if (!popup) {
-        gmailAuthPending = false;
-        showEmailStatus('Allow pop-ups for this site, then click Send via Gmail again.', false);
-      }
-    }
-
-    window.addEventListener('message', (event) => {
-      if (event.origin !== window.location.origin) return;
-      const data = event.data || {};
-      if (data.type === 'gmail-connected') {
-        gmailConnected = true;
-        gmailEmail = data.email || null;
-        updateGmailNote();
-        showEmailStatus(`Gmail connected as ${gmailEmail || 'your account'}. Creating the draft…`, true);
-        if (gmailAuthPending) {
-          gmailAuthPending = false;
-          createGmailDraft();
-        }
-      } else if (data.type === 'gmail-error') {
-        gmailAuthPending = false;
-        showEmailStatus(`Gmail connection failed: ${data.message || 'unknown error'}`, false);
-      }
-    });
 
     async function sendViaGmail() {
       if (!currentResponseData || !currentResponseData.report_id || !currentResponseData.draft) {
@@ -1047,70 +1044,29 @@
         return;
       }
       if (!gmailConfigured) {
-        showEmailStatus('Gmail is not configured on this server. Ask the administrator to set the Google OAuth variables.', false);
+        showEmailStatus('Gmail is not configured on this server. Ask the administrator to set the Google OAuth variables in .env.', false);
         await refreshGmailStatus();
-        return;
-      }
-      if (!gmailConnected) {
-        openGmailAuth();
-        return;
-      }
-      await createGmailDraft();
-    }
-
-    async function createGmailDraft() {
-      if (!currentResponseData || !currentResponseData.report_id || !currentResponseData.draft) {
-        showEmailStatus('No retained report is available. Submit the report again.', false);
         return;
       }
 
       const btn = document.getElementById('btn-gmail');
-      const textareaVal = document.getElementById('complaint-textarea').value;
       btn.disabled = true;
-      showEmailStatus('Creating a Gmail draft with the sanitized photo attached…', true, true);
+      showEmailStatus('Opening Gmail to prepare your complaint…', true, true);
 
+      // Save any edits from the textarea before navigating
+      const textareaVal = document.getElementById('complaint-textarea').value;
       try {
-        const response = await fetch(
-          `${API_BASE}/api/reports/${encodeURIComponent(currentResponseData.report_id)}/gmail-draft`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify({
-              body: textareaVal,
-              subject: currentResponseData.draft.subject || ''
-            })
-          }
-        );
-
-        if (response.status === 401) {
-          gmailConnected = false;
-          showEmailStatus('Gmail authorization expired. Please choose your account again.', false);
-          openGmailAuth();
-          return;
-        }
-
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(payload.detail || `Server returned HTTP ${response.status}`);
-        }
-
-        showEmailStatus(
-          `✓ Draft created in ${payload.account_email}. Gmail is opening — choose the sender, review, and press Send.`,
-          true
-        );
-        const url = payload.draft_url;
-        const gmailTab = window.open(url, '_blank');
-        if (!gmailTab) {
-          window.location.href = url;
-        }
+        await fetch(`${API_BASE}/api/reports/${encodeURIComponent(currentResponseData.report_id)}/draft`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body: textareaVal })
+        });
       } catch (err) {
-        console.error('Gmail draft creation failed:', err);
-        const detail = String(err.message || err);
-        showEmailStatus(`Gmail draft not created: ${detail.substring(0, 320)}`, false);
-      } finally {
-        btn.disabled = false;
+        console.warn('Failed to sync draft body before redirect:', err);
       }
+
+      // Option A: Direct redirect to initiate OAuth, create draft on callback, and open Gmail
+      window.location.href = `${API_BASE}/auth/google/start?report_id=${encodeURIComponent(currentResponseData.report_id)}`;
     }
 
     function showEmailStatus(message, ok, pending = false) {

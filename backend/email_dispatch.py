@@ -1,14 +1,12 @@
 """
 Server-Side Email Delivery for Compiled Civic Complaints.
 
-The browser can only open ``mailto:``/Gmail compose windows, and neither supports
-attaching a file. This module closes that evidence gap: when SMTP is configured, the
-backend sends the complaint directly to the resolved municipal officers with the
-sanitized (PII-blurred) JPEG attached.
+The backend sends the complaint directly to the resolved municipal officers with the
+sanitized (PII-blurred) JPEG attached when SMTP delivery is configured.
 
 Delivery is intentionally optional. Without SMTP configuration the API keeps working
-and reports ``503`` for server-side sends, while the existing mailto/Gmail/WhatsApp
-deep links plus the short-lived evidence URL remain available.
+and reports ``503`` for server-side sends, while the Gmail draft flow and short-lived
+evidence URL remain available.
 
 Environment variables:
     SMTP_HOST       SMTP server hostname. Presence enables server-side delivery.

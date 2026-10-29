@@ -55,7 +55,7 @@ CENTRAL_FALLBACK_AUTHORITY: dict[str, Any] = {
     "sanitary_inspector_email": "grievance.central@chd.nic.in",
     "moh_email": "",
     "commissioner_email": "",
-    "whatsapp_helpline": "",
+    "helpline": "",
     "ward_matched": False,
 }
 
@@ -209,8 +209,7 @@ async def resolve_authority(
             "sanitary_inspector_email": matched_properties.get("sanitary_inspector_email", ""),
             "moh_email": matched_properties.get("moh_email", ""),
             "commissioner_email": matched_properties.get("commissioner_email", ""),
-            "whatsapp_helpline": matched_properties.get("whatsapp_helpline", ""),
-            "helpline": matched_properties.get("whatsapp_helpline", ""),
+            "helpline": matched_properties.get("helpline", ""),
             "ward_matched": True,
             "municipal_matched": False,
             "match_type": "ward",

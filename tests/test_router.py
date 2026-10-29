@@ -112,7 +112,7 @@ async def test_in_bounds_ward_resolution() -> RouterMetricCard:
             "ward_name": result["ward_name"],
             "sanitary_inspector_email": result["sanitary_inspector_email"],
             "municipality_name": result["municipality_name"],
-            "whatsapp_helpline": result["whatsapp_helpline"],
+            "helpline": result["helpline"],
         },
     )
 
@@ -142,7 +142,7 @@ async def test_out_of_bounds_fallback() -> RouterMetricCard:
     assert result["sanitary_inspector_email"] == CENTRAL_FALLBACK_AUTHORITY["sanitary_inspector_email"]
     assert result["moh_email"] == CENTRAL_FALLBACK_AUTHORITY["moh_email"]
     assert result["commissioner_email"] == CENTRAL_FALLBACK_AUTHORITY["commissioner_email"]
-    assert result["whatsapp_helpline"] == CENTRAL_FALLBACK_AUTHORITY["whatsapp_helpline"]
+    assert result["helpline"] == CENTRAL_FALLBACK_AUTHORITY["helpline"]
 
     resolved_desc = "Unmapped (Central Fallback)"
 

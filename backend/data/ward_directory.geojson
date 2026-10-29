@@ -17,7 +17,7 @@
         "sanitary_inspector_email": "sanitation.ward12@chd.nic.in",
         "moh_email": "moh-mcc@chd.nic.in",
         "commissioner_email": "commissioner-mcc@chd.nic.in",
-        "whatsapp_helpline": "919220592205"
+        "helpline": "919220592205"
       },
       "geometry": {
         "type": "Polygon",
@@ -41,7 +41,7 @@
         "sanitary_inspector_email": "sanitation.ward13@chd.nic.in",
         "moh_email": "moh-mcc@chd.nic.in",
         "commissioner_email": "commissioner-mcc@chd.nic.in",
-        "whatsapp_helpline": "919220592205"
+        "helpline": "919220592205"
       },
       "geometry": {
         "type": "Polygon",
@@ -65,7 +65,7 @@
         "sanitary_inspector_email": "sanitation.ward24@chd.nic.in",
         "moh_email": "moh-mcc@chd.nic.in",
         "commissioner_email": "commissioner-mcc@chd.nic.in",
-        "whatsapp_helpline": "919220592205"
+        "helpline": "919220592205"
       },
       "geometry": {
         "type": "Polygon",

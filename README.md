@@ -58,32 +58,44 @@ Provider and model selection lives in [`backend/vlm_providers.json`](backend/vlm
 Each provider names an environment variable, never a key. Add, reorder, or disable
 models there without touching Python.
 
-## Gmail draft setup
+## Gmail draft setup (Google Cloud Console)
 
-The website has one delivery action: **Send via Gmail**. It creates a Gmail draft with
-the complaint and the sanitized JPEG attached, then opens Gmail so the user can choose
-the sender account and press Send. The backend scope is
-`https://www.googleapis.com/auth/gmail.compose` (draft creation only, not sending).
+The application provides a seamless, single-click dispatch action: **Send via Gmail**.
+Instead of opening an empty email without attachments, the backend uses the Google Gmail API to compose a full draft with the complaint text, municipal recipient, and PII-blurred evidence JPEG already attached. It then opens Gmail directly on that draft for the selected account so the user only reviews and presses **Send** — they never attach anything manually.
 
-1. Create a Google Cloud project and enable the **Gmail API**.
-2. Configure the OAuth consent screen (External/Testing is fine for a college project;
-   add your test users).
-3. Create an **OAuth 2.0 Client ID** for a Web application.
-4. Add the redirect URI:
-   - Local: `http://127.0.0.1:8000/auth/google/callback`
-   - Deployed: `https://your-domain.example/auth/google/callback`
-5. Set the environment:
+### Step-by-Step Google Cloud Configuration:
+1. **Create a Google Cloud Project**:
+   - Go to the [Google Cloud Console](https://console.cloud.google.com/).
+   - Create a new project (e.g., `civic-waste-monitor`).
+2. **Enable the Gmail API**:
+   - In APIs & Services → Library, search for **Gmail API** and click **Enable**.
+3. **Configure the OAuth Consent Screen**:
+   - Go to APIs & Services → OAuth consent screen.
+   - Choose **External** user type (Testing mode is ideal for local evaluation / college projects).
+   - Fill in the App name and developer contact email.
+   - Under **Scopes**, add `https://www.googleapis.com/auth/gmail.compose`.
+   - Under **Test users**, add your personal Gmail address(es) that you will use to test sending.
+4. **Create OAuth 2.0 Credentials**:
+   - Go to APIs & Services → Credentials → **Create Credentials** → **OAuth client ID**.
+   - Application type: **Web application**.
+   - Name: `Civic Waste Monitor Web App`.
+   - Under **Authorized redirect URIs**, add:
+     - Local: `http://localhost:8000/auth/google/callback`
+     - Local alternative: `http://127.0.0.1:8000/auth/google/callback`
+     - Production/Deployed: `https://your-domain.example/auth/google/callback`
+5. **Add Credentials to `.env`**:
+   - Copy Client ID and Client Secret into your `.env` file:
+   ```ini
+   GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=your-client-secret
+   GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
+   PUBLIC_BASE_URL=http://localhost:8000
+   ```
 
-```ini
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-GOOGLE_REDIRECT_URI=http://127.0.0.1:8000/auth/google/callback
-PUBLIC_BASE_URL=http://127.0.0.1:8000
-```
-
-The first click opens Google's account chooser. After consent, the backend creates the
-draft and opens Gmail's Drafts view for that account. OAuth sessions are in memory, so a
-server restart requires reconnecting Gmail.
+### OAuth Scope & Security:
+- **Scope used**: `https://www.googleapis.com/auth/gmail.compose`
+- **Why this scope?**: This scope grants permission to create and save email drafts in the user's Gmail account, but does **NOT** grant permission to send emails on their behalf or read their inbox. The user maintains full autonomy and must review the draft and manually press Send inside the Gmail interface.
+- **Single-Worker Session Store Caveat**: OAuth tokens and CSRF state are stored in an in-memory session store (`GoogleSessionStore`). For a local demo or single-process deployment (`uvicorn` with 1 worker), this is completely fine. For horizontal multi-worker or multi-container deployments, backing this store with Redis or a persistent database is recommended.
 
 ## VLM fallback semantics
 
@@ -164,9 +176,9 @@ covered cities.
 | `POST /api/report` | Multipart photo + `lat`/`lon` → analysis, ward/municipal routing, letter, evidence link |
 | `GET /api/evidence/{token}` | Sanitized JPEG behind a 24 h bearer link |
 | `GET /auth/google/status` | Whether Gmail OAuth is configured and connected |
-| `GET /auth/google/start` | Google account chooser / OAuth consent |
-| `GET /auth/google/callback` | OAuth callback; stores the Gmail session |
-| `POST /api/reports/{id}/gmail-draft` | Create a Gmail draft with the JPEG attached |
+| `GET /auth/google/start?report_id={id}` | Google account chooser / OAuth consent redirect for report |
+| `GET /auth/google/callback` | OAuth callback; creates JPEG-attached draft and 302 redirects directly to Gmail |
+| `PATCH /api/reports/{id}/draft` | Sync user-edited complaint text before dispatch |
 | `POST /api/reports/{id}/email` | Optional legacy SMTP send with the JPEG attached |
 | `GET /api/health` | Liveness + provider counts |
 | `GET /api/health/providers` | Live model and circuit health |

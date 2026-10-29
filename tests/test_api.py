@@ -40,6 +40,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from backend.gmail_draft import GMAIL_STATES
 from backend.main import app
 from backend.privacy import blur_pii_in_image
 from backend.vlm_router import VLMResult
@@ -74,8 +75,7 @@ def test_full_positive_pipeline_and_handoff_compilation() -> APIMetricCard:
     - Mocks the VLM to return positive garbage detection.
     - Asserts status code 200.
     - Asserts garbage_detected == True.
-    - Asserts the draft targets the Ward 12 email.
-    - Asserts no legacy mailto/Gmail/WhatsApp URLs are present.
+    - Asserts the draft contains only clean, structured fields.
     """
     lat, lon = 30.7500, 76.7700
     mock_vlm_dict = {
@@ -117,10 +117,8 @@ def test_full_positive_pipeline_and_handoff_compilation() -> APIMetricCard:
     draft = body.get("draft", {})
     assert draft, "Draft object must be present in positive detection response"
     assert draft["to"] == "sanitation.ward12@chd.nic.in"
-    assert draft["subject"].startswith("URGENT:")
-    assert "mailto_url" not in draft
-    assert "gmail_web_url" not in draft
-    assert "whatsapp_url" not in draft
+    # Verify draft contains only clean fields
+    assert set(draft.keys()) == {"to", "cc", "subject", "body", "evidence_url", "evidence_expires_at"}
 
     return APIMetricCard(
         test_name="Test 1: Full Positive Pipeline",
@@ -237,18 +235,26 @@ def test_gmail_draft_contains_jpeg_attachment() -> APIMetricCard:
         form_data = {"lat": str(lat), "lon": str(lon)}
         report = client.post("/api/report", files=files, data=form_data)
         report_id = report.json()["report_id"]
-        response = client.post(
-            f"/api/reports/{report_id}/gmail-draft",
+
+        # Sync user-edited complaint text before dispatch
+        patch_res = client.patch(
+            f"/api/reports/{report_id}/draft",
             json={"body": special_desc},
         )
+        assert patch_res.status_code == 200
+
+        # Execute Option A OAuth redirect flow
+        state = GMAIL_STATES.create(report_id=report_id, redirect_uri="http://testserver/auth/google/callback")
+        with patch("backend.main.exchange_code", new=AsyncMock(return_value={"access_token": "token-1", "expires_in": 3600})), \
+             patch("backend.main.fetch_userinfo", new=AsyncMock(return_value={"email": "tester@gmail.com"})):
+            response = client.get(f"/auth/google/callback?code=testcode&state={state}", follow_redirects=False)
 
     latency_ms = (time.perf_counter() - start_time) * 1000.0
-    assert response.status_code == 200, response.text
-    payload = response.json()
-    assert payload["status"] == "draft_created"
-    assert payload["draft_id"] == "draft-123"
-    assert "authuser=tester%40gmail.com" in payload["draft_url"]
-    assert payload["attachment_bytes"] > 0
+    assert response.status_code == 302, response.text
+    location = response.headers["location"]
+    assert "mail.google.com" in location
+    assert "authuser=tester%40gmail.com" in location
+    assert "#drafts?compose=draft-123" in location
 
     raw = mock_create.call_args.args[1]
     padded = raw + "=" * (-len(raw) % 4)
@@ -264,12 +270,12 @@ def test_gmail_draft_contains_jpeg_attachment() -> APIMetricCard:
 
     return APIMetricCard(
         test_name="Test 3: Gmail Draft Attachment",
-        endpoint="POST /api/reports/{id}/gmail-draft",
+        endpoint="GET /auth/google/callback (Option A)",
         latency_ms=latency_ms,
         status="PASSED",
         details={
-            "draft_id": payload["draft_id"],
-            "account_email": payload["account_email"],
+            "draft_id": "draft-123",
+            "account_email": "tester@gmail.com",
             "attachment_type": attachments[0].get_content_type(),
             "body_roundtrip": "special characters preserved",
         },

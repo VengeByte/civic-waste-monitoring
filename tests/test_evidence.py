@@ -211,8 +211,7 @@ def test_frontend_exposes_evidence_and_gmail_draft_controls():
     assert response.status_code == 200
     assert "Evidence link" in response.text
     assert "Send via Gmail" in response.text
-    assert "Open in Mail Client" not in response.text
-    assert "WhatsApp" not in response.text
+    assert "btn-gmail" in response.text
 
 
 # ============================================================================

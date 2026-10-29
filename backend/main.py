@@ -18,7 +18,7 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, Response, UploadFile, status
@@ -65,6 +65,8 @@ if not logger.handlers:
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
 
+IST = timezone(timedelta(hours=5, minutes=30), name="IST")
+
 
 async def _validate_providers_on_startup() -> None:
     """
@@ -90,6 +92,13 @@ async def _validate_providers_on_startup() -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    try:
+        from backend.privacy import load_cascades
+        from backend.authority_router import load_ward_directory
+        load_cascades()
+        load_ward_directory()
+    except Exception as exc:
+        logger.warning("Could not pre-warm local models on startup: %s", exc)
     await _validate_providers_on_startup()
     yield
 
@@ -209,7 +218,7 @@ def compile_complaint_letter(
     time_str = (
         captured_at.strip()
         if captured_at and captured_at.strip()
-        else datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        else datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S IST")
     )
 
     formatted_address = (
@@ -554,27 +563,9 @@ def _google_redirect_uri(request: Request, config: GoogleOAuthConfig) -> str:
     return str(request.url_for("google_callback"))
 
 
-def _oauth_popup_html(payload: dict[str, Any]) -> HTMLResponse:
-    """Return a tiny page that notifies the opener and closes the OAuth popup."""
-    payload_json = json.dumps(payload)
-    html = f"""<!doctype html>
-<html><head><meta charset="utf-8"><title>Gmail connection</title></head>
-<body style="font-family: system-ui, sans-serif; padding: 2rem;">
-<p>Gmail connection complete. You can close this window.</p>
-<script>
-  const payload = {payload_json};
-  if (window.opener) {{
-    window.opener.postMessage(payload, window.location.origin);
-  }}
-  window.close();
-</script>
-</body></html>"""
-    return HTMLResponse(content=html)
-
-
 @app.get("/auth/google/status", summary="Gmail Connection Status")
 async def google_status(request: Request) -> dict[str, Any]:
-    """Report whether Gmail OAuth is configured and whether this browser is connected."""
+    """Report whether Gmail OAuth is configured and whether this browser has an active session."""
     config = GoogleOAuthConfig.from_env()
     session = GMAIL_SESSIONS.get(request.cookies.get(SESSION_COOKIE_NAME))
     return {
@@ -584,9 +575,18 @@ async def google_status(request: Request) -> dict[str, Any]:
     }
 
 
-@app.get("/auth/google/start", summary="Connect a Gmail Account")
-async def google_start(request: Request, popup: bool = False) -> RedirectResponse:
-    """Redirect to Google's account chooser with the Gmail compose scope."""
+@app.get("/auth/google/start", summary="Initiate Gmail OAuth Authorization")
+async def google_start(
+    request: Request,
+    report_id: Optional[str] = None,
+    popup: bool = False,
+) -> RedirectResponse:
+    """
+    Redirect the user to Google's OAuth consent and account chooser.
+
+    Validates that Gmail OAuth is configured and the report is active before
+    generating a short-lived state and redirecting to accounts.google.com.
+    """
     config = GoogleOAuthConfig.from_env()
     if config is None:
         raise HTTPException(
@@ -597,43 +597,71 @@ async def google_start(request: Request, popup: bool = False) -> RedirectRespons
             ),
         )
 
+    if not report_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="report_id is required.",
+        )
+
+    record = EVIDENCE_STORE.get(report_id)
+    if record is None or not record.draft:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="report expired — please submit again",
+        )
+
     redirect_uri = _google_redirect_uri(request, config)
-    state = GMAIL_STATES.create(popup=popup, redirect_uri=redirect_uri)
-    return RedirectResponse(
-        config.authorization_url(state, redirect_uri),
-        status_code=status.HTTP_302_FOUND,
-    )
+    state = GMAIL_STATES.create(report_id=report_id, redirect_uri=redirect_uri, popup=popup)
+    auth_url = config.authorization_url(state, redirect_uri)
+    return RedirectResponse(auth_url, status_code=status.HTTP_302_FOUND)
 
 
-@app.get("/auth/google/callback", name="google_callback", summary="Gmail OAuth Callback")
+@app.get("/auth/google/callback", name="google_callback", summary="Gmail OAuth Callback & Draft Creation")
 async def google_callback(
     request: Request,
     code: Optional[str] = None,
     state: Optional[str] = None,
     error: Optional[str] = None,
 ) -> Response:
-    """Exchange the authorization code and store the Gmail session."""
+    """
+    Exchange the authorization code, create the Gmail draft with the photo attached,
+    and redirect the browser directly to Gmail on the created draft.
+    """
     pending = GMAIL_STATES.consume(state)
     if pending is None:
-        return HTMLResponse(
-            "<h1>Gmail connection failed</h1><p>Invalid or expired OAuth state.</p>",
+        raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired OAuth state.",
         )
 
     if error:
-        return _oauth_popup_html(
-            {"type": "gmail-error", "message": f"Google returned: {error}"}
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Google returned error: {error}",
         )
 
     config = GoogleOAuthConfig.from_env()
     if config is None:
-        return _oauth_popup_html(
-            {"type": "gmail-error", "message": "Gmail integration is not configured."}
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Gmail draft integration is not configured. Set GOOGLE_CLIENT_ID, "
+                "GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI."
+            ),
         )
 
     if not code:
-        return _oauth_popup_html(
-            {"type": "gmail-error", "message": "Google did not return an authorization code."}
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google did not return an authorization code.",
+        )
+
+    report_id = pending.report_id
+    record = EVIDENCE_STORE.get(report_id)
+    if record is None or not record.draft:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="report expired — please submit again",
         )
 
     try:
@@ -641,102 +669,18 @@ async def google_callback(
         userinfo = await fetch_userinfo(token_data["access_token"])
         session = GMAIL_SESSIONS.create(token_data, str(userinfo["email"]))
     except GmailOAuthError as exc:
-        logger.warning("Gmail OAuth failed: %s", exc)
-        return _oauth_popup_html({"type": "gmail-error", "message": str(exc)})
-
-    if pending.popup:
-        response: Response = _oauth_popup_html(
-            {"type": "gmail-connected", "email": session.email}
-        )
-    else:
-        response = RedirectResponse(url="/?gmail=connected", status_code=status.HTTP_303_SEE_OTHER)
-
-    response.set_cookie(
-        key=SESSION_COOKIE_NAME,
-        value=session.session_id,
-        max_age=SESSION_TTL_SECONDS,
-        httponly=True,
-        samesite="lax",
-        secure=request.url.scheme == "https",
-        path="/",
-    )
-    return response
-
-
-@app.post(
-    "/api/reports/{report_id}/gmail-draft",
-    summary="Create Gmail Draft with Photo Attached",
-)
-async def create_report_gmail_draft(
-    report_id: str,
-    request: Request,
-    payload: Optional[EmailDispatchRequest] = None,
-) -> dict[str, Any]:
-    """
-    Create a draft in the connected Gmail account with the sanitized JPEG attached.
-
-    The draft is not sent. Gmail opens in the Drafts view so the user can select the
-    sender account, review the message, and press Send.
-    """
-    config = GoogleOAuthConfig.from_env()
-    if config is None:
+        logger.warning("Gmail OAuth token exchange failed: %s", exc)
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(
-                "Gmail draft integration is not configured. Set GOOGLE_CLIENT_ID, "
-                "GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI."
-            ),
-        )
-
-    session_id = request.cookies.get(SESSION_COOKIE_NAME)
-    session = GMAIL_SESSIONS.get(session_id)
-    if session is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Connect a Gmail account before creating a draft.",
-        )
-
-    if session.expires_at <= time.time() + 60:
-        if not session.refresh_token:
-            GMAIL_SESSIONS.delete(session.session_id)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Gmail authorization expired. Please reconnect your account.",
-            )
-        try:
-            refreshed = await refresh_access_token(config, session.refresh_token)
-        except GmailOAuthError as exc:
-            logger.warning("Gmail token refresh failed: %s", exc)
-            GMAIL_SESSIONS.delete(session.session_id)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Gmail authorization expired. Please reconnect your account.",
-            )
-        updated = GMAIL_SESSIONS.update_tokens(session.session_id, refreshed)
-        if updated is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Gmail session expired. Please reconnect your account.",
-            )
-        session = updated
-
-    record = EVIDENCE_STORE.get(report_id)
-    if record is None or not record.draft:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Report not found or the evidence link has expired.",
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Google authentication failed: {exc}",
         )
 
     draft = record.draft
-    to_email = str(draft.get("to", "")).strip()
+    from backend.authority_router import central_grievance_email
+    to_email = str(draft.get("to", "")).strip() or central_grievance_email()
     cc_list = [str(addr).strip() for addr in draft.get("cc", []) if str(addr).strip()]
-    subject = (payload.subject if payload and payload.subject else draft.get("subject", "")).strip()
-    body = (payload.body if payload and payload.body else draft.get("body", "")).strip()
-    if not to_email or not subject or not body:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Complaint draft is missing a recipient, subject, or body.",
-        )
+    subject = str(draft.get("subject", "Civic Waste Complaint")).strip()
+    body = str(draft.get("body", "")).strip()
 
     filename = f"civic-evidence-{report_id[:8]}.jpg"
     try:
@@ -751,39 +695,79 @@ async def create_report_gmail_draft(
         )
         raw_message = build_raw_message(message)
         gmail_draft = await create_gmail_draft(session.access_token, raw_message)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Could not build the Gmail draft: {exc}",
-        )
-    except GmailOAuthError as exc:
-        logger.warning("Gmail draft creation failed: %s", exc)
+    except Exception as exc:
+        logger.warning("Gmail draft creation failed for report %s...: %s", report_id[:8], exc)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Gmail could not create the draft. Please reconnect and try again.",
+            detail=f"Gmail draft creation failed: {exc}",
         )
 
-    draft_url = build_draft_url(session.email)
+    draft_id = str(gmail_draft.get("id", ""))
+    msg_id = ""
+    if isinstance(gmail_draft.get("message"), dict):
+        msg_id = str(gmail_draft["message"].get("id", ""))
+
+    draft_url = build_draft_url(session.email, draft_id=draft_id, message_id=msg_id)
     logger.info(
-        "Created Gmail draft %s for report %s... in %s.",
-        gmail_draft.get("id"),
+        "Created Gmail draft %s for report %s... in %s. Issuing 302 to Gmail.",
+        draft_id,
         report_id[:8],
         session.email,
     )
+
+    response = RedirectResponse(url=draft_url, status_code=status.HTTP_302_FOUND)
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=session.session_id,
+        max_age=SESSION_TTL_SECONDS,
+        httponly=True,
+        samesite="lax",
+        secure=request.url.scheme == "https",
+        path="/",
+    )
+    return response
+
+
+class UpdateDraftRequest(BaseModel):
+    """Payload for editing draft subject or body before dispatch."""
+
+    body: Optional[str] = Field(
+        default=None,
+        max_length=MAX_EMAIL_BODY_CHARS,
+        description="Updated complaint body.",
+    )
+    subject: Optional[str] = Field(
+        default=None,
+        max_length=MAX_EMAIL_SUBJECT_CHARS,
+        description="Updated complaint subject.",
+    )
+
+
+@app.patch(
+    "/api/reports/{report_id}/draft",
+    summary="Update Complaint Draft Text",
+)
+async def update_report_draft(
+    report_id: str,
+    payload: UpdateDraftRequest,
+) -> dict[str, Any]:
+    """Sync user edits from the complaint textarea into the retained draft."""
+    record = EVIDENCE_STORE.get(report_id)
+    if record is None or not record.draft:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="report expired — please submit again",
+        )
+
+    if payload.body is not None:
+        record.draft["body"] = payload.body.strip()
+    if payload.subject is not None:
+        record.draft["subject"] = payload.subject.strip()
+
     return {
-        "status": "draft_created",
+        "status": "updated",
         "report_id": report_id,
-        "draft_id": gmail_draft.get("id"),
-        "draft_url": draft_url,
-        "account_email": session.email,
-        "to": to_email,
-        "cc": cc_list,
-        "subject": subject,
-        "attachment_bytes": len(record.image_bytes),
-        "message": (
-            "Gmail draft created with the sanitized photo attached. "
-            "Choose the sender account in Gmail and press Send."
-        ),
+        "draft": record.draft,
     }
 
 
