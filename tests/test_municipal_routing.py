@@ -24,13 +24,13 @@ POSITIVE_VLM = {
 }
 
 
-def _report(lat: float, lon: float) -> dict:
+def _report(lat: float, lon: float, address: str = "Test address, India") -> dict:
     with patch(
         "backend.main.analyze_with_vlm",
         return_value=VLMResult(dict(POSITIVE_VLM), provider="Google Gemini"),
     ), patch(
         "backend.authority_router.lookup_address",
-        return_value="Test address, India",
+        return_value=address,
     ):
         response = client.post(
             "/api/report",
@@ -86,8 +86,8 @@ def test_chandigarh_municipal_match_outside_wards():
 
 def test_uncovered_city_uses_central_fallback():
     async def _run():
-        with patch("backend.authority_router.lookup_address", return_value="Surat"):
-            return await resolve_authority(21.1702, 72.8311)
+        with patch("backend.authority_router.lookup_address", return_value="Remote Outpost, Unmapped Territory"):
+            return await resolve_authority(0.0, 0.0)
 
     result = asyncio.run(_run())
     assert result["match_type"] == "central_fallback"
@@ -158,11 +158,11 @@ def test_mumbai_report_routes_to_bmc_email():
     assert "Ward N/A" not in draft["subject"]
 
 
-def test_surat_report_routes_to_central_email():
-    body = _report(21.1702, 72.8311)
+def test_surat_report_routes_to_city_email():
+    body = _report(21.1702, 72.8311, address="Ring Road, Surat, Gujarat, India")
     authority = body["authority"]
     draft = body["draft"]
 
-    assert authority["match_type"] == "central_fallback"
-    assert draft["to"] == "grievance.central@chd.nic.in"
-    assert "could not be mapped to a specific municipal corporation" in draft["body"]
+    assert authority["match_type"] == "state_city_directory"
+    assert authority["sanitary_inspector_email"] == "commissioner@suratmunicipal.org"
+    assert draft["to"] == "commissioner@suratmunicipal.org"

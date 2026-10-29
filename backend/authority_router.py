@@ -22,6 +22,7 @@ from shapely.geometry import Point, shape
 
 from backend.env_loader import load_env_file
 from backend.municipal_directory import get_municipal_directory
+from backend.state_authority_router import get_state_authority_resolver
 
 # Configure logger
 logger = logging.getLogger("backend.authority_router")
@@ -108,15 +109,14 @@ def get_cached_wards() -> List[Tuple[Any, Dict[str, Any]]]:
     return _cached_wards
 
 
-async def lookup_address(
+async def lookup_address_details(
     lat: float,
     lon: float,
     client: Optional[httpx.AsyncClient] = None,
     timeout: float = NOMINATIM_TIMEOUT_SECONDS,
-) -> str:
+) -> tuple[str, dict[str, Any]]:
     """
-    Asynchronously query OpenStreetMap Nominatim for human-readable reverse geocoded address.
-    Falls back to formatted coordinates if Nominatim fails or times out.
+    Asynchronously query OpenStreetMap Nominatim for reverse geocoded address and detailed metadata.
 
     Args:
         lat: Latitude of location.
@@ -125,10 +125,10 @@ async def lookup_address(
         timeout: Network timeout in seconds (default: 5.0s).
 
     Returns:
-        Reverse geocoded display address or formatted coordinate fallback string.
+        tuple[display_address, address_details_dict]
     """
     fallback_address = f"Lat: {lat:.6f}, Lon: {lon:.6f}"
-    url = f"{NOMINATIM_REVERSE_URL}?format=json&lat={lat}&lon={lon}&zoom=18"
+    url = f"{NOMINATIM_REVERSE_URL}?format=json&lat={lat}&lon={lon}&zoom=18&addressdetails=1"
     headers = {"User-Agent": NOMINATIM_USER_AGENT}
 
     owns_client = client is None
@@ -139,21 +139,36 @@ async def lookup_address(
         if response.status_code == 200:
             data = response.json()
             display_name = data.get("display_name")
+            addr_dict = data.get("address", {}) if isinstance(data.get("address"), dict) else {}
             if display_name and isinstance(display_name, str):
-                return display_name.strip()
-            return fallback_address
+                return display_name.strip(), addr_dict
+            return fallback_address, addr_dict
         else:
             logger.warning(
                 "Nominatim reverse lookup returned HTTP %d. Falling back to coordinates.",
                 response.status_code,
             )
-            return fallback_address
+            return fallback_address, {}
     except Exception as exc:
         logger.warning("Nominatim reverse lookup failed or timed out (%s). Using coordinate fallback.", exc)
-        return fallback_address
+        return fallback_address, {}
     finally:
         if owns_client:
             await http_client.aclose()
+
+
+async def lookup_address(
+    lat: float,
+    lon: float,
+    client: Optional[httpx.AsyncClient] = None,
+    timeout: float = NOMINATIM_TIMEOUT_SECONDS,
+) -> str:
+    """
+    Asynchronously query OpenStreetMap Nominatim for human-readable reverse geocoded address.
+    Falls back to formatted coordinates if Nominatim fails or times out.
+    """
+    address, _ = await lookup_address_details(lat=lat, lon=lon, client=client, timeout=timeout)
+    return address
 
 
 async def resolve_authority(
@@ -238,6 +253,23 @@ async def resolve_authority(
             lon=lon,
             address=resolved_address,
         )
+
+    # 3c. Countrywide State & City Directory Lookup (from scraped ULB directory)
+    state_resolver = get_state_authority_resolver()
+    state_match = state_resolver.resolve(
+        lat=lat,
+        lon=lon,
+        resolved_address=resolved_address,
+    )
+    if state_match is not None:
+        logger.info(
+            "Point (%.5f, %.5f) matched State/City authority %s (%s).",
+            lat,
+            lon,
+            state_match.get("municipality_name"),
+            state_match.get("sanitary_inspector_email"),
+        )
+        return state_match
 
     # 4. Safe Central Fallback Result (outside all covered polygons)
     logger.info(
