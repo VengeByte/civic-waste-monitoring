@@ -254,7 +254,7 @@ def test_gmail_draft_contains_jpeg_attachment() -> APIMetricCard:
     location = response.headers["location"]
     assert "mail.google.com" in location
     assert "authuser=tester%40gmail.com" in location
-    assert "#drafts?compose=draft-123" in location
+    assert "#inbox?compose=draft-123" in location
 
     raw = mock_create.call_args.args[1]
     padded = raw + "=" * (-len(raw) % 4)

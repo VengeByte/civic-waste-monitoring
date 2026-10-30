@@ -80,6 +80,9 @@ def _draft_record(to: str = "sanitation@city.gov", subject: str = "Waste clearan
 # ============================================================================
 
 def test_config_from_env_and_auth_url(monkeypatch):
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "")
+    monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "")
+    monkeypatch.setenv("GOOGLE_REDIRECT_URI", "")
     assert GoogleOAuthConfig.from_env() is None
     monkeypatch.setenv("GOOGLE_CLIENT_ID", "id")
     monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "secret")
@@ -100,7 +103,11 @@ def test_draft_url_uses_authuser_and_compose():
     url = build_draft_url("a.b+test@gmail.com", draft_id="draft-123")
     assert url.startswith("https://mail.google.com/mail/u/?authuser=")
     assert "a.b%2Btest%40gmail.com" in url
-    assert "#drafts?compose=draft-123" in url
+    assert "#inbox?compose=draft-123" in url
+
+    # Prioritizes message_id when present so Gmail SPA pops Compose directly
+    url_with_msg = build_draft_url("a.b+test@gmail.com", draft_id="draft-123", message_id="msg-456")
+    assert "#inbox?compose=msg-456" in url_with_msg
 
 
 def test_build_raw_message_contains_jpeg():
@@ -172,19 +179,21 @@ def test_refresh_access_token_raises_on_invalid_grant():
 # ============================================================================
 
 def test_google_status_unconfigured(monkeypatch):
-    response = client.get("/auth/google/status")
-    assert response.status_code == 200
-    assert response.json() == {
-        "configured": False,
-        "connected": False,
-        "email": None,
-    }
+    with patch("backend.main.GoogleOAuthConfig.from_env", return_value=None):
+        response = client.get("/auth/google/status")
+        assert response.status_code == 200
+        assert response.json() == {
+            "configured": False,
+            "connected": False,
+            "email": None,
+        }
 
 
 def test_google_start_returns_503_when_unconfigured():
-    response = client.get("/auth/google/start")
-    assert response.status_code == 503
-    assert "Gmail draft integration is not configured. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI." in response.json()["detail"]
+    with patch("backend.main.GoogleOAuthConfig.from_env", return_value=None):
+        response = client.get("/auth/google/start")
+        assert response.status_code == 503
+        assert "Gmail draft integration is not configured. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI." in response.json()["detail"]
 
 
 def test_google_start_returns_400_when_report_id_missing():
@@ -258,7 +267,7 @@ def test_google_callback_creates_draft_and_redirects_to_gmail():
     location = response.headers["location"]
     assert location.startswith("https://mail.google.com/mail/u/?authuser=")
     assert "officer.citizen%40gmail.com" in location
-    assert "#drafts?compose=draft-abc" in location
+    assert "#inbox?compose=msg-xyz" in location
 
     assert SESSION_COOKIE_NAME in response.cookies
     assert len(GMAIL_SESSIONS._sessions) == 1

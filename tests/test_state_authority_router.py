@@ -57,7 +57,7 @@ def test_state_level_fallback_resolution():
 
 def test_unmapped_state_resolution():
     resolver = get_state_authority_resolver()
-    # Test completely unknown location (e.g. outside India)
+    # Test completely unknown location (e.g. outside India and coordinate 0,0)
     address_dict = {
         "city": "Nowhere",
         "state": "Atlantis",
@@ -70,4 +70,31 @@ def test_unmapped_state_resolution():
         resolved_address="Nowhere, Atlantis",
     )
     assert match is None
+
+
+def test_mysore_city_resolution():
+    resolver = get_state_authority_resolver()
+    match = resolver.resolve(
+        lat=12.3600,
+        lon=76.6000,
+        resolved_address="Hootagalli, Mysuru, Karnataka, India",
+    )
+    assert match is not None
+    assert match["municipality_name"] == "Mysuru City Corporation (MCC)"
+    assert match["sanitary_inspector_email"] == "commissionermcc@gmail.com"
+    assert match["match_type"] == "state_city_directory"
+
+
+def test_karnataka_state_fallback_resolution():
+    resolver = get_state_authority_resolver()
+    match = resolver.resolve(
+        lat=14.5000,
+        lon=75.5000,
+        resolved_address="Chitradurga Rural, Karnataka, India",
+    )
+    assert match is not None
+    assert match["municipality_name"] == "Directorate of Municipal Administration, Karnataka"
+    assert match["sanitary_inspector_email"] == "dmadir.kar@nic.in"
+    assert match["match_type"] == "state_directorate"
+
 

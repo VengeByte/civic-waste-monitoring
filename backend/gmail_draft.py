@@ -277,15 +277,17 @@ def build_draft_url(email: str, draft_id: str = "", message_id: str = "") -> str
     """
     Return the Gmail deep link targeting the authorized account's draft.
 
+    Pops the compose window directly in front of the user with the draft pre-loaded.
+
     Format:
-        https://mail.google.com/mail/u/?authuser=<urlencoded-email>#drafts?compose=<draftId>
+        https://mail.google.com/mail/u/?authuser=<urlencoded-email>#inbox?compose=<messageId>
     """
-    compose_id = draft_id or message_id
+    compose_id = message_id or draft_id
     encoded_email = quote(email, safe="")
     if compose_id:
         encoded_compose = quote(compose_id, safe="")
-        return f"https://mail.google.com/mail/u/?authuser={encoded_email}#drafts?compose={encoded_compose}"
-    return f"https://mail.google.com/mail/u/?authuser={encoded_email}#drafts"
+        return f"https://mail.google.com/mail/u/?authuser={encoded_email}#inbox?compose={encoded_compose}"
+    return f"https://mail.google.com/mail/u/?authuser={encoded_email}#inbox"
 
 
 class GoogleSessionStore:
