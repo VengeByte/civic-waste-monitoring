@@ -61,7 +61,7 @@ models there without touching Python.
 ## Gmail draft setup (Google Cloud Console)
 
 The application provides a seamless, single-click dispatch action: **Send via Gmail**.
-Instead of opening an empty email without attachments, the backend uses the Google Gmail API to compose a full draft with the complaint text, municipal recipient, and PII-blurred evidence JPEG already attached. It then opens Gmail directly on that draft for the selected account so the user only reviews and presses **Send** — they never attach anything manually.
+Instead of opening an empty email without attachments, the backend uses the Google Gmail API to compose a full draft with the complaint text, municipal recipient, and PII-blurred evidence JPEG already attached. It then opens Gmail directly with the Compose modal popped up in front of the user (`#inbox?compose=<messageId>`) so the user only reviews and presses **Send** — they never attach anything manually or hunt through their drafts folder.
 
 ### Step-by-Step Google Cloud Configuration:
 1. **Create a Google Cloud Project**:
@@ -145,29 +145,29 @@ $env:VLM_STARTUP_CHECK = "1"
 $env:VLM_STRICT_STARTUP_CHECK = "0"   # set to 1 to fail startup on a dead model
 ```
 
-## Countrywide municipal data — pipeline only, not wired yet
+## Countrywide Municipal Authority Resolution
 
-The offline acquisition pipeline is in [`scripts/gis/`](scripts/gis/) and writes:
+The system employs a 4-tier hierarchical authority routing engine to ensure every civic complaint reaches the rightful local administration across India:
 
-- `backend/data/municipal/municipal_corporations.json` — 54 contacts
-- `backend/data/municipal/municipal_boundaries.geojson` — boundary polygons where available
-- `backend/data/municipal/review_report.csv` — QA table
-- `backend/data/municipal/manifest.json` — query audit log
+```
+Coordinates (lat, lon)
+   │
+   ├─► Tier 1: Granular Ward Polygons (e.g. Chandigarh Ward Directory)
+   │     └─► Matches specific ward sanitary inspector & councillor
+   │
+   ├─► Tier 2: Municipal Corporation Boundaries (GIS Polygons)
+   │     └─► Point-in-polygon matching against covered municipal GIS polygons (30 covered cities)
+   │
+   ├─► Tier 3: Pan-India State & City Authority Router (backend/state_authority_router.py)
+   │     ├─► City-Level Directory: Matches recognized city corporations (e.g., Mysuru MCC, BBMP Bengaluru, Pune, Indore, Surat)
+   │     ├─► State Nodal Directorates: Covers all 28 States & 8 Union Territories routing to the respective Directorate of Urban Local Bodies / Municipal Administration
+   │     └─► Offline Bounding Boxes: Geofence fallback if reverse geocoding is unreachable
+   │
+   └─► Tier 4: Central Nodal Grievance Fallback
+         └─► Default fallback (grievance.central@chd.nic.in, override with CENTRAL_GRIEVANCE_EMAIL)
+```
 
-The app now ships a **30-record covered dataset**; the 24 corporations without a usable
-boundary were removed from the output and are listed in
-`manifest.json → excluded_missing`. Of the 30, 11 use DataMeet community
-ward/boundary maps (CC BY 4.0) and the rest use OpenStreetMap or an approximate city
-boundary. Routing order is:
-
-1. Chandigarh ward polygon, if matched.
-2. One of the 30 covered municipal corporation polygons.
-3. Central municipal grievance fallback for every pin outside those boundaries; the
-   complaint is emailed to `grievance.central@chd.nic.in` (override with
-   `CENTRAL_GRIEVANCE_EMAIL`).
-
-See [`scripts/gis/README.md`](scripts/gis/README.md) to rerun the pipeline or add more
-covered cities.
+The offline GIS acquisition pipeline is in [`scripts/gis/`](scripts/gis/) and manages boundary geojsons and corporation contacts. See [`scripts/gis/README.md`](scripts/gis/README.md) for details on updating spatial data.
 
 ## API
 
@@ -208,6 +208,7 @@ no test spends API quota.
 | [`backend/vlm_metrics.py`](backend/vlm_metrics.py) | In-process attempt metrics |
 | [`backend/provider_check.py`](backend/provider_check.py) | `/models` catalog validation |
 | [`backend/authority_router.py`](backend/authority_router.py) | Ward polygons, Nominatim, Haversine |
+| [`backend/state_authority_router.py`](backend/state_authority_router.py) | Pan-India state & city fallback authority router (28 States & 8 UTs) |
 | [`backend/evidence.py`](backend/evidence.py) | TTL-bounded evidence store |
 | [`backend/email_dispatch.py`](backend/email_dispatch.py) | SMTP delivery with JPEG attachment |
 | [`backend/data/municipal/`](backend/data/municipal/) | Countrywide contacts + boundary dataset (30/54 polygons) |
