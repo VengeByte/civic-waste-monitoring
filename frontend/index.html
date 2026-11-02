@@ -1082,11 +1082,14 @@
         return;
       }
 
+      // 1. Immediately open a new tab on the user's click gesture (prevents popup blocker)
+      const newTab = window.open('about:blank', '_blank');
+
       const btn = document.getElementById('btn-gmail');
       btn.disabled = true;
-      showEmailStatus('Opening Gmail to prepare your email...', true, true);
+      showEmailStatus('Opening Gmail in a new tab...', true, true);
 
-      // Save any edits from the textarea before navigating
+      // 2. Save any edits from the textarea before navigating
       const textareaVal = document.getElementById('complaint-textarea').value;
       try {
         await fetch(`${API_BASE}/api/reports/${encodeURIComponent(currentResponseData.report_id)}/draft`, {
@@ -1098,8 +1101,19 @@
         console.warn('Failed to sync draft body before redirect:', err);
       }
 
-      // Direct redirect to initiate OAuth, create draft on callback, and open Gmail
-      window.location.href = `${API_BASE}/auth/google/start?report_id=${encodeURIComponent(currentResponseData.report_id)}`;
+      // 3. Navigate the new tab to Google OAuth & Gmail
+      const targetUrl = `${API_BASE}/auth/google/start?report_id=${encodeURIComponent(currentResponseData.report_id)}`;
+      if (newTab) {
+        newTab.location.href = targetUrl;
+      } else {
+        // Fallback if popup was blocked
+        window.location.href = targetUrl;
+      }
+
+      setTimeout(() => {
+        btn.disabled = false;
+        showEmailStatus('Opened Gmail in a new tab! Review your draft and press Send there.', true);
+      }, 1200);
     }
 
     function showEmailStatus(message, ok, pending = false) {
