@@ -266,11 +266,7 @@ def compile_complaint_letter(
             f"• Authority Basis    : {boundary_quality or 'municipal'} boundary"
         )
 
-    evidence_line = (
-        f"• Photo Evidence      : {evidence_url}\n"
-        if evidence_url
-        else ""
-    )
+    evidence_line = "• Photo Evidence      : Attached to this email (PII anonymized)\n"
     portal_line = f"• Municipal Portal    : {website}\n" if website else ""
     helpline_line = f"• Helpline            : {helpline}\n" if helpline else ""
     routing_note = (

@@ -1,17 +1,15 @@
-# Civic Garbage & Waste Monitor
+# Civic Waste Reporter
 
-A FastAPI + single-page application that turns a photo of uncollected civic waste into a
-privacy-sanitized municipal complaint with a short-lived evidence link and a
-photo-attached Gmail draft.
+A FastAPI + modern citizen-friendly web application that turns a photo of uncollected civic waste into an official municipal complaint with automatic local privacy anonymization (faces & license plates blurred) and a photo-attached Gmail draft preloaded for 1-click dispatch.
 
 ```
-photo + lat/lon
+photo + map location pin
    → OpenCV PII redaction (faces, plates, 51×51 blur)
    → multi-provider VLM inspection (Gemini → OpenRouter)
    → strict JSON schema validation
-   → ward / municipal-corporation lookup + Nominatim address
-   → complaint letter + evidence link
-   → Gmail draft with the JPEG attached; user selects sender and presses Send
+   → 4-tier municipal authority routing (Ward → City Corporation → State ULB Directorate)
+   → official complaint letter with JPEG evidence attached
+   → Gmail Compose opens directly with prefilled recipient, complaint body & photo attached
 ```
 
 ## Quick start
@@ -213,7 +211,7 @@ no test spends API quota.
 | [`backend/email_dispatch.py`](backend/email_dispatch.py) | SMTP delivery with JPEG attachment |
 | [`backend/data/municipal/`](backend/data/municipal/) | Countrywide contacts + boundary dataset (30/54 polygons) |
 | [`scripts/gis/`](scripts/gis/) | Offline OSM + DataMeet acquisition pipeline |
-| [`frontend/index.html`](frontend/index.html) | Map, upload, results, dispatch UI |
+| [`frontend/index.html`](frontend/index.html) | Citizen-friendly reporting UI (2-step action, map location, 1-click Gmail send) |
 
 ## Known limitations
 

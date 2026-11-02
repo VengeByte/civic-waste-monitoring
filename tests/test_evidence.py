@@ -151,9 +151,10 @@ def test_report_response_contains_report_id_and_evidence_url():
 
     assert body["report_id"]
     assert draft["evidence_url"].endswith(f"/api/evidence/{body['report_id']}")
-    assert draft["evidence_url"] in draft["body"]
+    assert draft["evidence_url"] not in draft["body"]
     assert draft["evidence_expires_at"].endswith("Z")
     assert "Photo Evidence" in draft["body"]
+    assert "Attached to this email" in draft["body"]
 
 
 def test_evidence_endpoint_serves_exact_sanitized_jpeg():
@@ -209,7 +210,7 @@ def test_frontend_exposes_evidence_and_gmail_draft_controls():
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "Evidence link" in response.text
+    assert "Incident Address" in response.text
     assert "Send via Gmail" in response.text
     assert "btn-gmail" in response.text
 
@@ -278,7 +279,7 @@ def test_email_endpoint_uses_compiled_draft_when_no_override(monkeypatch):
     kwargs = mock_send.call_args.kwargs
     assert kwargs["subject"] == body["draft"]["subject"]
     assert kwargs["body"] == body["draft"]["body"]
-    assert body["draft"]["evidence_url"] in kwargs["body"]
+    assert "Photo Evidence      : Attached to this email" in kwargs["body"]
 
 
 def test_email_endpoint_enforces_send_limit(monkeypatch):
