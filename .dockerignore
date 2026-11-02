@@ -1,0 +1,16 @@
+.venv/
+.env
+.git/
+.gitignore
+.cache/
+.pytest_cache/
+__pycache__/
+*/__pycache__/
+*/*/__pycache__/
+tests/
+scripts/
+Municipal_Spatial_Data-master/
+Municipal_Spatial_Data-master.zip
+*.log
+*.pyc
+*.md

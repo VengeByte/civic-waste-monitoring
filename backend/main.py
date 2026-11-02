@@ -767,11 +767,21 @@ async def update_report_draft(
     }
 
 
-# Serve Frontend Static Assets & Single Page Interface
+# Serve Frontend Static Assets, Privacy Policy & Single Page Interface
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles
 
 frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
+
+@app.get("/privacy", response_class=HTMLResponse, summary="Application Privacy Policy")
+async def get_privacy_policy() -> HTMLResponse:
+    """Serve the public privacy policy page for Google OAuth verification compliance."""
+    privacy_file = frontend_dir / "privacy.html"
+    if privacy_file.is_file():
+        return HTMLResponse(content=privacy_file.read_text(encoding="utf-8"))
+    return HTMLResponse(content="<h1>Privacy Policy</h1><p>Civic Waste Reporter Privacy Policy</p>")
+
+
 if frontend_dir.is_dir():
     app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
 
