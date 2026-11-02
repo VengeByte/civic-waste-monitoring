@@ -163,14 +163,6 @@ class TestMainAPI(unittest.TestCase):
         self.assertIn("sanitized_image_b64", res_json)
         self.assertNotIn("draft", res_json)
 
-    def test_privacy_policy_endpoint(self):
-        """GET /privacy returns the Google OAuth compliant privacy policy."""
-        response = self.client.get("/privacy")
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("Privacy Policy", response.text)
-        self.assertIn("Google API Services User Data Policy", response.text)
-        self.assertIn("gmail.compose", response.text)
-
 
 if __name__ == "__main__":
     unittest.main()

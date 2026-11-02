@@ -95,22 +95,6 @@ Instead of opening an empty email without attachments, the backend uses the Goog
 - **Why this scope?**: This scope grants permission to create and save email drafts in the user's Gmail account, but does **NOT** grant permission to send emails on their behalf or read their inbox. The user maintains full autonomy and must review the draft and manually press Send inside the Gmail interface.
 - **Single-Worker Session Store Caveat**: OAuth tokens and CSRF state are stored in an in-memory session store (`GoogleSessionStore`). For a local demo or single-process deployment (`uvicorn` with 1 worker), this is completely fine. For horizontal multi-worker or multi-container deployments, backing this store with Redis or a persistent database is recommended.
 
-## Cloud Run Deployment
-
-Deploy directly to Google Cloud Run from source:
-
-```powershell
-gcloud run deploy civic-waste-reporter `
-  --source . `
-  --region asia-south1 `
-  --allow-unauthenticated `
-  --min-instances 1 `
-  --memory 1Gi `
-  --set-env-vars "GOOGLE_CLIENT_ID=<id>,GOOGLE_CLIENT_SECRET=<secret>,GEMINI_API_KEY=<key>,PUBLIC_BASE_URL=https://<service-url>,GOOGLE_REDIRECT_URI=https://<service-url>/auth/google/callback"
-```
-
-Cloud Run dynamically injects `$PORT`, handles managed HTTPS certificates automatically, and provisions the `/privacy` endpoint required for Google OAuth App Verification.
-
 ## VLM fallback semantics
 
 The router ([`backend/vlm_router.py`](backend/vlm_router.py)) distinguishes failure
@@ -196,7 +180,6 @@ The offline GIS acquisition pipeline is in [`scripts/gis/`](scripts/gis/) and ma
 | `POST /api/reports/{id}/email` | Optional legacy SMTP send with the JPEG attached |
 | `GET /api/health` | Liveness + provider counts |
 | `GET /api/health/providers` | Live model and circuit health |
-| `GET /privacy` | Public Google-compliant Privacy Policy |
 
 ## Tests
 
@@ -229,9 +212,6 @@ no test spends API quota.
 | [`backend/data/municipal/`](backend/data/municipal/) | Countrywide contacts + boundary dataset (30/54 polygons) |
 | [`scripts/gis/`](scripts/gis/) | Offline OSM + DataMeet acquisition pipeline |
 | [`frontend/index.html`](frontend/index.html) | Citizen-friendly reporting UI (2-step action, map location, 1-click Gmail send) |
-| [`frontend/privacy.html`](frontend/privacy.html) | Public privacy policy compliant with Google API Services User Data Policy |
-| [`Dockerfile`](Dockerfile) | Container specification for Google Cloud Run deployment |
-| [`.dockerignore`](.dockerignore) | Build context exclusion rules |
 
 ## Known limitations
 
