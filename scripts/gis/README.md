@@ -128,8 +128,9 @@ URL and CC BY 4.0 attribution.
 The 24 excluded cities are: Nashik, Hubli-Dharwad, Warangal, Visakhapatnam, Surat,
 Rajkot, Ghaziabad, Varanasi, Howrah, Asansol, Gaya, Ludhiana, Amritsar, Gurugram,
 Thiruvananthapuram, Cuttack, Ranchi, Raipur, Guwahati, Dehradun, Shimla, Srinagar,
-Jammu, and Puducherry. Pins outside the 30 covered polygons go to the central municipal
-grievance email.
+Jammu, and Puducherry.
+
+> **Runtime Handoff (Tier 3 Integration)**: While these 24 cities currently lack granular GIS polygon boundaries in `municipal_boundaries.geojson`, the live application's 4-tier routing engine does **not** drop them. Coordinates in these cities (and across any unmapped location in India) are resolved via **Tier 3: Pan-India State & City Authority Router** ([`backend/state_authority_router.py`](../../backend/state_authority_router.py)), which maps city names, district bounds, and state nodal Directorates of Urban Local Bodies across all 28 States and 8 Union Territories before falling back to Tier 4.
 
 This is an OpenStreetMap and DataMeet coverage gap, not a pipeline failure. For example,
 OSM has Pune's district (`admin_level=5`) and subdistrict (`admin_level=6`) but no PMC
