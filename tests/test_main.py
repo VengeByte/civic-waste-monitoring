@@ -164,5 +164,14 @@ class TestMainAPI(unittest.TestCase):
         self.assertNotIn("draft", res_json)
 
 
+    def test_privacy_policy_endpoint(self):
+        """GET /privacy returns 200 with HTML content containing Limited Use disclosure."""
+        response = self.client.get("/privacy")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("text/html", response.headers.get("content-type", ""))
+        self.assertIn("Privacy Policy", response.text)
+        self.assertIn("Google API Services User Data Policy", response.text)
+
+
 if __name__ == "__main__":
     unittest.main()

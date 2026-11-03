@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy | Civic Waste Reporter</title>
+  <meta name="description" content="Privacy Policy for Civic Waste Reporter detailing data collection, image privacy protection, and Google API Services User Data Policy compliance.">
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#0B1120] text-slate-200 min-h-screen antialiased flex flex-col justify-between selection:bg-emerald-500 selection:text-white">
+
+  <!-- Top Bar -->
+  <header class="sticky top-0 z-40 bg-[#0B1120]/95 backdrop-blur-md border-b border-slate-800/80 shadow-sm">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3 hover:opacity-90 transition">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-lg shadow-md shadow-emerald-500/20">
+          ♻️
+        </div>
+        <div>
+          <span class="text-base font-bold text-white block">Civic Waste Reporter</span>
+          <span class="text-xs text-slate-400">&larr; Back to Reporter</span>
+        </div>
+      </a>
+      <span class="text-xs text-slate-400">Effective Date: November 2026</span>
+    </div>
+  </header>
+
+  <!-- Content Container -->
+  <main class="max-w-4xl w-full mx-auto px-4 sm:px-6 py-10 flex-1">
+    <div class="bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-3xl p-6 sm:p-10 shadow-xl space-y-8">
+      
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Privacy Policy</h1>
+        <p class="text-sm text-slate-400 mt-2">
+          Your privacy is paramount. Civic Waste Reporter is built with privacy-first architecture, ensuring that citizen reports remain safe, local, and transparent.
+        </p>
+      </div>
+
+      <!-- 1. What Information We Collect -->
+      <section class="space-y-3">
+        <h2 class="text-lg font-bold text-emerald-400 flex items-center gap-2">
+          <span>1.</span> Information We Collect
+        </h2>
+        <p class="text-sm text-slate-300 leading-relaxed">
+          Civic Waste Reporter collects only the minimal information strictly required to identify civic waste and prepare an official grievance dispatch for municipal authorities:
+        </p>
+        <ul class="list-disc list-inside text-sm text-slate-300 space-y-1.5 pl-2">
+          <li><strong>Incident Photographs:</strong> Photos of uncollected garbage or illegal dumping submitted directly by the user.</li>
+          <li><strong>Geolocation Coordinates:</strong> Latitude and longitude coordinates chosen by the user on the map or extracted from the photo's EXIF metadata to determine the responsible municipal ward or corporation.</li>
+          <li><strong>Report Timestamps:</strong> Date and time when the waste incident was documented.</li>
+        </ul>
+      </section>
+
+      <!-- 2. Local PII Redaction -->
+      <section class="space-y-3">
+        <h2 class="text-lg font-bold text-emerald-400 flex items-center gap-2">
+          <span>2.</span> Automatic Privacy Protection & PII Redaction
+        </h2>
+        <p class="text-sm text-slate-300 leading-relaxed">
+          Before any photograph is analyzed or attached, our server automatically runs local computer vision algorithms (Haar Cascades) to detect and redact sensitive Personally Identifiable Information (PII):
+        </p>
+        <ul class="list-disc list-inside text-sm text-slate-300 space-y-1.5 pl-2">
+          <li>Human faces are blurred with a heavy 51×51 Gaussian filter.</li>
+          <li>Vehicle license plates are blurred to protect bystanders and vehicle owners.</li>
+        </ul>
+      </section>
+
+      <!-- 3. Google API Services & Gmail Integration -->
+      <section class="space-y-3">
+        <h2 class="text-lg font-bold text-emerald-400 flex items-center gap-2">
+          <span>3.</span> Google API Services User Data Policy & Gmail Scope
+        </h2>
+        <p class="text-sm text-slate-300 leading-relaxed">
+          Our application integrates with the Google Gmail API to provide a one-click draft creation workflow. We request only the following scope:
+        </p>
+        <div class="p-4 rounded-2xl bg-slate-900/80 border border-slate-700/80 text-xs font-mono text-emerald-300">
+          https://www.googleapis.com/auth/gmail.compose
+        </div>
+        <p class="text-sm text-slate-300 leading-relaxed">
+          <strong>How this scope is used:</strong>
+        </p>
+        <ul class="list-disc list-inside text-sm text-slate-300 space-y-1.5 pl-2">
+          <li>This permission is used solely to compose an email draft in the user's Gmail account addressed to the appropriate municipal authority, pre-filling the complaint letter and attaching the sanitized incident photograph.</li>
+          <li>We <strong>NEVER</strong> read your emails, access your inbox, modify existing emails, or delete messages.</li>
+          <li>We <strong>NEVER</strong> send emails automatically. The user maintains 100% control to review the draft inside Gmail and manually press Send.</li>
+        </ul>
+        <div class="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 text-xs text-emerald-200 leading-relaxed">
+          <strong>Google Limited Use Compliance:</strong> Civic Waste Reporter's use and transfer of information received from Google APIs to any other app will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" class="underline text-emerald-300 font-semibold">Google API Services User Data Policy</a>, including the Limited Use requirements.
+        </div>
+      </section>
+
+      <!-- 4. Data Sharing & Retention -->
+      <section class="space-y-3">
+        <h2 class="text-lg font-bold text-emerald-400 flex items-center gap-2">
+          <span>4.</span> Data Retention & Third-Party Sharing
+        </h2>
+        <ul class="list-disc list-inside text-sm text-slate-300 space-y-1.5 pl-2">
+          <li><strong>No Data Selling:</strong> We do not sell, rent, or trade your personal data, email addresses, or images to any third parties, advertisers, or data brokers.</li>
+          <li><strong>Temporary Retention:</strong> Uploaded evidence photos and draft sessions are held in process-local memory temporarily (maximum 24 hours) solely to allow the Gmail draft creation flow, after which they are automatically purged.</li>
+          <li><strong>No Persistent User Accounts:</strong> The service does not require password registration or retain tracking profiles.</li>
+        </ul>
+      </section>
+
+      <!-- 5. User Rights & Revocation -->
+      <section class="space-y-3">
+        <h2 class="text-lg font-bold text-emerald-400 flex items-center gap-2">
+          <span>5.</span> Managing Your Google Permissions
+        </h2>
+        <p class="text-sm text-slate-300 leading-relaxed">
+          You can review or revoke Civic Waste Reporter's permission to create Gmail drafts at any time by visiting your <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" class="underline text-teal-300 font-semibold">Google Account Security Permissions</a>.
+        </p>
+      </section>
+
+      <!-- 6. Contact Us -->
+      <section class="space-y-3 pt-4 border-t border-slate-700/60">
+        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+          <span>6.</span> Contact & Inquiries
+        </h2>
+        <p class="text-sm text-slate-300 leading-relaxed">
+          If you have questions about this Privacy Policy or wish to request data deletion, please contact:
+        </p>
+        <p class="text-sm font-mono text-emerald-400">
+          Email: <a href="mailto:anubhav1383@gmail.com" class="underline">anubhav1383@gmail.com</a>
+        </p>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="border-t border-slate-800/80 bg-[#0B1120] py-4 text-center text-xs text-slate-500">
+    Civic Waste Reporter &bull; Privacy Policy &bull; <a href="/" class="text-slate-400 hover:text-white underline">Home</a>
+  </footer>
+
+</body>
+</html>

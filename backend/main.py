@@ -768,6 +768,15 @@ async def update_report_draft(
     }
 
 
+@app.get("/privacy", response_class=HTMLResponse, summary="Public Privacy Policy Page")
+async def privacy_policy() -> HTMLResponse:
+    """Serve the public Google API Services User Data Policy-compliant privacy policy."""
+    privacy_file = Path(__file__).resolve().parent.parent / "frontend" / "privacy.html"
+    if privacy_file.is_file():
+        return HTMLResponse(content=privacy_file.read_text(encoding="utf-8"), status_code=200)
+    return HTMLResponse(content="<h1>Privacy Policy</h1><p>Contact: anubhav1383@gmail.com</p>", status_code=200)
+
+
 # Serve Frontend Static Assets & Single Page Interface
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles
