@@ -42,16 +42,14 @@ def get_cascade_path(filename: str) -> str:
     Raises:
         FileNotFoundError: If the cascade file cannot be located.
     """
-    # 1. Primary location: OpenCV bundled data directory
-    if hasattr(cv2, "data") and hasattr(cv2.data, "haarcascades"):
-        cascade_path = os.path.join(cv2.data.haarcascades, filename)
-        if os.path.isfile(cascade_path):
-            return os.path.abspath(cascade_path)
-
-    # 2. Fallback locations: local directory, package data, current working directory
+    # 1. Primary location: Bundled package data directory (guaranteed cross-platform on Linux/Render/Docker)
+    backend_dir = Path(__file__).resolve().parent
     search_dirs = [
-        Path(__file__).resolve().parent,
-        Path(__file__).resolve().parent / "data",
+        backend_dir / "data" / "cascades",
+        backend_dir / "data",
+        backend_dir,
+        Path.cwd() / "backend" / "data" / "cascades",
+        Path.cwd() / "backend" / "data",
         Path.cwd(),
     ]
     for directory in search_dirs:
@@ -59,9 +57,15 @@ def get_cascade_path(filename: str) -> str:
         if candidate.is_file():
             return str(candidate.resolve())
 
+    # 2. Secondary fallback: OpenCV system/wheel bundled data directory
+    if hasattr(cv2, "data") and hasattr(cv2.data, "haarcascades") and cv2.data.haarcascades:
+        cascade_path = os.path.join(cv2.data.haarcascades, filename)
+        if os.path.isfile(cascade_path):
+            return os.path.abspath(cascade_path)
+
     raise FileNotFoundError(
-        f"Haar cascade XML file '{filename}' could not be located in cv2.data.haarcascades "
-        f"or standard fallback directories."
+        f"Haar cascade XML file '{filename}' could not be located in bundled directories "
+        f"or cv2.data.haarcascades."
     )
 
 
