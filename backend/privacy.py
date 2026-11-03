@@ -12,11 +12,14 @@ Execution is strictly CPU-bound with no external network calls or GPU dependenci
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
-from typing import List, Tuple
+from typing import Any, List, Tuple
 import cv2
 import numpy as np
+
+logger = logging.getLogger("civic.privacy")
 
 # Enforce strictly CPU execution by disabling OpenCL GPU offloading
 cv2.ocl.setUseOpenCL(False)
@@ -69,7 +72,20 @@ def get_cascade_path(filename: str) -> str:
     )
 
 
-def load_cascades() -> tuple[cv2.CascadeClassifier, cv2.CascadeClassifier]:
+def _get_cascade_classifier_class():
+    """Retrieve the CascadeClassifier class from cv2 or cv2.objdetect."""
+    cls = getattr(cv2, "CascadeClassifier", None)
+    if cls is not None:
+        return cls
+    try:
+        import importlib
+        objdetect_mod = importlib.import_module("cv2.objdetect")
+        return getattr(objdetect_mod, "CascadeClassifier", None)
+    except Exception:
+        return None
+
+
+def load_cascades() -> tuple[Any, Any]:
     """
     Load and cache Haar Cascade classifiers for face and license plate detection.
 
@@ -77,21 +93,26 @@ def load_cascades() -> tuple[cv2.CascadeClassifier, cv2.CascadeClassifier]:
         Tuple of (face_cascade, plate_cascade).
 
     Raises:
+        AttributeError: If CascadeClassifier is not available in OpenCV.
         FileNotFoundError: If cascade XML files are missing.
         RuntimeError: If cascade classifiers fail to initialize.
     """
     global _face_cascade, _plate_cascade
 
+    cascade_class = _get_cascade_classifier_class()
+    if cascade_class is None:
+        raise AttributeError("OpenCV build does not expose CascadeClassifier.")
+
     if _face_cascade is None or _face_cascade.empty():
         face_path = get_cascade_path(FACE_CASCADE_FILENAME)
-        classifier = cv2.CascadeClassifier(face_path)
+        classifier = cascade_class(face_path)
         if classifier.empty():
             raise RuntimeError(f"Failed to load Haar cascade from '{face_path}'.")
         _face_cascade = classifier
 
     if _plate_cascade is None or _plate_cascade.empty():
         plate_path = get_cascade_path(PLATE_CASCADE_FILENAME)
-        classifier = cv2.CascadeClassifier(plate_path)
+        classifier = cascade_class(plate_path)
         if classifier.empty():
             raise RuntimeError(f"Failed to load Haar cascade from '{plate_path}'.")
         _plate_cascade = classifier
@@ -123,7 +144,15 @@ def detect_pii_regions(
     Returns:
         List of bounding box tuples: [(x, y, w, h), ...]
     """
-    face_cascade, plate_cascade = load_cascades()
+    try:
+        face_cascade, plate_cascade = load_cascades()
+    except Exception as exc:
+        logger.warning(
+            "PII cascades could not be loaded (%s). Proceeding with zero detected regions.",
+            exc,
+        )
+        return []
+
     boxes: list[tuple[int, int, int, int]] = []
 
     # Detect human faces

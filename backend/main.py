@@ -160,6 +160,7 @@ async def health_check() -> dict[str, Any]:
     return {
         "status": "healthy",
         "service": "civic-garbage-api",
+        "version": "2.1.0",
         "vlm_providers": len(DEFAULT_PROVIDERS),
         "vlm_keys_configured": configured_api_key_count(),
     }
